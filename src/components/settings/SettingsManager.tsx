@@ -9,8 +9,10 @@ import {
   ShieldCheck,
   AlertTriangle,
   FileCheck,
-  Sparkles
+  Sparkles,
+  BookOpen
 } from 'lucide-react';
+import { GuideModal } from './GuideModal';
 import { useApp } from '../../context/AppContext';
 import type { SchoolProfile } from '../../types';
 import {
@@ -38,6 +40,7 @@ export const SettingsManager: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [validationModal, setValidationModal] = useState<ValidationResult | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,13 +89,22 @@ export const SettingsManager: React.FC = () => {
     <div className="space-y-6 pb-12 max-w-4xl mx-auto">
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white font-cairo">
-          إعدادات المؤسسة والنظام
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-          تخصيص هوية المؤسسة التعليمية، تدبير النسخ الاحتياطي، وسجل الأنشطة
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white font-cairo">
+            إعدادات المؤسسة والنظام
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            تخصيص هوية المؤسسة التعليمية، تدبير النسخ الاحتياطي، وسجل الأنشطة
+          </p>
+        </div>
+        <button
+          onClick={() => setGuideOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 rounded-xl border border-teal-200 dark:border-teal-800 text-xs font-bold self-start sm:self-auto transition-all"
+        >
+          <BookOpen className="w-4 h-4 text-teal-600" />
+          <span>دليل الاستخدام والتشغيل</span>
+        </button>
       </div>
 
       {/* Success Banner */}
@@ -440,6 +452,9 @@ export const SettingsManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* User Guide Modal */}
+      <GuideModal isOpen={guideOpen} onClose={() => setGuideOpen(false)} />
 
       {/* Reset Confirmation Modal */}
       {resetConfirmOpen && (
