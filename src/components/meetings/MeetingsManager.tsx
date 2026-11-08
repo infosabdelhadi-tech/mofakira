@@ -317,16 +317,25 @@ export const MeetingsManager: React.FC = () => {
                                 <option value="ملغى">ملغى</option>
                               </select>
 
-                              {!dec.convertedTaskId && (
-                                <button
-                                  onClick={() => convertDecisionToTask(meeting.id, dec)}
-                                  className="flex items-center gap-1 px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-lg shadow-xs transition-transform active:scale-95"
-                                  title="تحويل هذا القرار إلى مهمة عمل في جدول المهام"
-                                >
-                                  <ArrowUpRight className="w-3.5 h-3.5" />
-                                  <span>تحويل لمهمة</span>
-                                </button>
-                              )}
+                                {dec.convertedTaskId ? (
+                                  <button
+                                    onClick={() => setActiveTab('tasks')}
+                                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-xs rounded-lg border border-emerald-200 dark:border-emerald-800"
+                                    title="القرار محول مسبقاً لمهمة - اضغط للانتقال إليها"
+                                  >
+                                    <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>تم التحويل لمهمة</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => convertDecisionToTask(meeting.id, dec)}
+                                    className="flex items-center gap-1 px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-lg shadow-xs transition-transform active:scale-95"
+                                    title="تحويل هذا القرار إلى مهمة عمل في جدول المهام"
+                                  >
+                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                    <span>تحويل لمهمة</span>
+                                  </button>
+                                )}
                             </div>
                           </div>
                         ))}

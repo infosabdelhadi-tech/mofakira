@@ -1,10 +1,11 @@
-// PWA Service Worker for Offline Caching
-const CACHE_NAME = 'mofakira-cache-v1';
+// PWA Service Worker for Offline Caching (v2.1)
+const CACHE_NAME = 'mofakira-cache-v2.1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/vite.svg'
+  '/mofakkira-icon.svg',
+  '/favicon.svg'
 ];
 
 self.addEventListener('install', (event) => {

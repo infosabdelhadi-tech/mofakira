@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   Search,
   Moon,
   Sun,
   Calendar as CalendarIcon,
-  BookOpen
+  BookOpen,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -19,6 +21,19 @@ export const Header: React.FC = () => {
     toggleDarkMode,
     setActiveTab
   } = useApp();
+
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -78,8 +93,21 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Left side: Search, Notifications, Theme toggle */}
+          {/* Left side: Search, Notifications, Theme toggle, Offline indicator */}
           <div className="flex items-center gap-2">
+
+            {/* Offline status badge */}
+            {!isOnline ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 rounded-full text-amber-800 dark:text-amber-300 text-[11px] font-bold" title="التطبيق يعمل بدون اتصال (Offline-first)">
+                <WifiOff className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">أوفلاين (محفوظ محلياً)</span>
+              </div>
+            ) : (
+              <div className="hidden xl:flex items-center gap-1 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium" title="متصل بالإنترنت">
+                <Wifi className="w-3 h-3" />
+                <span>متصل</span>
+              </div>
+            )}
 
             {/* Quick Search Button */}
             <button

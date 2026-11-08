@@ -101,6 +101,8 @@ export interface Task {
   isFavorite?: boolean;          // المفضلة
   isArchived?: boolean;          // مؤرشفة
   operationId?: string;          // مرتبطة بعملية معينة
+  meetingId?: string;            // مرتبطة باجتماع أو مجلس
+  decisionId?: string;           // مرتبطة بقرار محدد
   carriedOverCount?: number;     // عدد مرات الترحيل
   history?: TaskHistoryEntry[];  // سجل تاريخ التغييرات
   updatedAt: string;             // تاريخ التعديل

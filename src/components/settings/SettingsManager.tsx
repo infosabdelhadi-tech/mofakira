@@ -7,22 +7,31 @@ import {
   RotateCcw,
   CheckCircle2,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  FileCheck,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { exportAllDataAsJSON } from '../../utils/storage';
+import {
+  exportAllDataAsJSON,
+  validateBackupFile,
+  restoreBackupData,
+  type ValidationResult
+} from '../../utils/storage';
 
 export const SettingsManager: React.FC = () => {
   const {
     schoolProfile,
     updateSchoolProfile,
     resetAllData,
+    loadDemoData,
     activityLogs
   } = useApp();
 
   const [form, setForm] = useState(schoolProfile);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [validationModal, setValidationModal] = useState<ValidationResult | null>(null);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,26 +51,29 @@ export const SettingsManager: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.schoolProfile) localStorage.setItem('mofakkira_school_profile', JSON.stringify(parsed.schoolProfile));
-        if (parsed.tasks) localStorage.setItem('mofakkira_tasks', JSON.stringify(parsed.tasks));
-        if (parsed.appointments) localStorage.setItem('mofakkira_appointments', JSON.stringify(parsed.appointments));
-        if (parsed.operations) localStorage.setItem('mofakkira_operations', JSON.stringify(parsed.operations));
-        if (parsed.dailyNotes) localStorage.setItem('mofakkira_daily_notes', JSON.stringify(parsed.dailyNotes));
-        alert('تم استيراد النسخة الاحتياطية بنجاح! سيتم إعادة تحميل الصفحة.');
-        window.location.reload();
-      } catch (err) {
-        alert('حدث خطأ أثناء قراءة ملف النسخة الاحتياطية.');
+      const content = event.target?.result as string;
+      const result = validateBackupFile(content);
+      if (!result.isValid) {
+        alert(result.error || 'الملف المختار غير صالح.');
+        return;
       }
+      setValidationModal(result);
     };
     reader.readAsText(file);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleConfirmRestore = () => {
+    if (!validationModal?.data) return;
+    restoreBackupData(validationModal.data);
+    alert('تمت استعادة البيانات بنجاح! سيتم تحديث الصفحة.');
+    window.location.reload();
   };
 
   return (
@@ -267,25 +279,47 @@ export const SettingsManager: React.FC = () => {
             </div>
             <label className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs font-bold rounded-lg cursor-pointer">
               <Upload className="w-3.5 h-3.5" />
-              <span>اختيار ملف للاستعادة</span>
-              <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
+              <span>فحص واختيار ملف للاستعادة</span>
+              <input type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
             </label>
           </div>
 
         </div>
 
+        {/* Exploratory Demo Data Trigger */}
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-bold text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-teal-600" />
+              <span>البيانات النموذجية الاستكشافية (Demo Data)</span>
+            </div>
+            <div className="text-[11px] text-slate-400">تحميل أمثلة لمهام وعمليات واجتماعات مدرسة ابتدائية نموذجية لتجربة كافة إمكانيات المفكرة</div>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('هل تود تحميل البيانات النموذجية الاستكشافية؟')) {
+                loadDemoData();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 hover:bg-teal-100 rounded-lg border border-teal-200 dark:border-teal-800 self-start sm:self-auto"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>تحميل بيانات استكشافية</span>
+          </button>
+        </div>
+
         {/* Danger zone: Reset */}
         <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-bold text-rose-600">إعادة ضبط البيانات الافتراضية</div>
-            <div className="text-[11px] text-slate-400">إعادة تعيين المفكرة إلى البيانات النموذجية الأصلية لمؤسسة ابتدائية</div>
+            <div className="text-xs font-bold text-rose-600">إفراغ البيانات والبدء من الصفر</div>
+            <div className="text-[11px] text-slate-400">مسح السجلات والمهام للبدء بمفكرة جديدة بيضاء مع الاحتفاظ بملف المؤسسة</div>
           </div>
           <button
             onClick={() => setResetConfirmOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg border border-rose-200 self-start sm:self-auto"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>إعادة تعيين المفكرة</span>
+            <span>إعادة ضبط وتفريغ المفكرة</span>
           </button>
         </div>
       </div>
@@ -310,6 +344,83 @@ export const SettingsManager: React.FC = () => {
         </div>
       </div>
 
+      {/* Restore Validation & Confirmation Modal */}
+      {validationModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in">
+            <div className="flex items-center gap-2.5 text-indigo-600">
+              <FileCheck className="w-6 h-6" />
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                تأكيد استرجاع النسخة الاحتياطية
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              تم فحص بنية الملف بنجاح. فيما يلي ملخص البيانات التي سيتم استرجاعها واستبدال البيانات الحالية بها:
+            </p>
+
+            {validationModal.summary && (
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">اسم المؤسسة في الملف:</span>
+                  <span className="font-bold text-slate-800 dark:text-white">{validationModal.summary.schoolName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">تاريخ تصدير النسخة:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{validationModal.summary.exportDate}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 text-center">
+                  <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg">
+                    <div className="font-bold text-teal-600">{validationModal.summary.tasksCount}</div>
+                    <div className="text-[10px] text-slate-400">مهام</div>
+                  </div>
+                  <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg">
+                    <div className="font-bold text-amber-600">{validationModal.summary.appointmentsCount}</div>
+                    <div className="text-[10px] text-slate-400">مواعيد</div>
+                  </div>
+                  <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg">
+                    <div className="font-bold text-indigo-600">{validationModal.summary.operationsCount}</div>
+                    <div className="text-[10px] text-slate-400">عمليات</div>
+                  </div>
+                  <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg">
+                    <div className="font-bold text-purple-600">{validationModal.summary.meetingsCount}</div>
+                    <div className="text-[10px] text-slate-400">اجتماعات</div>
+                  </div>
+                  <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg">
+                    <div className="font-bold text-blue-600">{validationModal.summary.annualCount}</div>
+                    <div className="text-[10px] text-slate-400">برنامج سنوي</div>
+                  </div>
+                  <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg">
+                    <div className="font-bold text-emerald-600">{validationModal.summary.notesCount}</div>
+                    <div className="text-[10px] text-slate-400">تدوينات</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px]">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>تحذير: سيتم استبدال البيانات الحالية على هذا المتصفح ببيانات الملف.</span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setValidationModal(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 rounded-xl"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleConfirmRestore}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md"
+              >
+                تأكيد الاسترجاع واستبدال البيانات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reset Confirmation Modal */}
       {resetConfirmOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -317,11 +428,11 @@ export const SettingsManager: React.FC = () => {
             <div className="flex items-center gap-3 text-rose-600">
               <AlertTriangle className="w-6 h-6" />
               <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                تأكيد إعادة ضبط البيانات
+                تأكيد تفريغ وإعادة تهيئة المفكرة
               </h3>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              هل أنت متأكد من رغبتك في إعادة تعيين كافة البيانات إلى النموذج الأولي؟ سيتم مسح أي تعديلات غير محفوظة في نسخة احتياطية.
+              هل أنت متأكد من تفريغ كافة السجلات للبدء من جديد؟ لن يتم مسح هوية المؤسسة ولكن ستُحذف المهام والمواعيد والمذكرات.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -337,7 +448,7 @@ export const SettingsManager: React.FC = () => {
                 }}
                 className="px-4 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-lg"
               >
-                تأكيد إعادة التعيين
+                تأكيد التفريغ
               </button>
             </div>
           </div>

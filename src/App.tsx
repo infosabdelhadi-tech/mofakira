@@ -17,11 +17,13 @@ import { MeetingModal } from './components/meetings/MeetingModal';
 import { AnnualPlanManager } from './components/annual/AnnualPlanManager';
 import { DailyNotebook } from './components/notes/DailyNotebook';
 import { NotificationDrawer } from './components/notifications/NotificationDrawer';
+import { NotificationsCenter } from './components/notifications/NotificationsCenter';
 import { ReportsManager } from './components/reports/ReportsManager';
 import { SettingsManager } from './components/settings/SettingsManager';
+import { OnboardingModal } from './components/settings/OnboardingModal';
 
 export const AppContent: React.FC = () => {
-  const { activeTab } = useApp();
+  const { activeTab, isOnboardingOpen, setIsOnboardingOpen } = useApp();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-cairo">
@@ -43,7 +45,7 @@ export const AppContent: React.FC = () => {
           {activeTab === 'meetings' && <MeetingsManager />}
           {activeTab === 'notebook' && <DailyNotebook />}
           {activeTab === 'reports' && <ReportsManager />}
-          {activeTab === 'notifications' && <DailyNotebook />}
+          {activeTab === 'notifications' && <NotificationsCenter />}
           {activeTab === 'settings' && <SettingsManager />}
         </main>
       </div>
@@ -58,6 +60,7 @@ export const AppContent: React.FC = () => {
       <AppointmentModal />
       <OperationModal />
       <MeetingModal />
+      <OnboardingModal isOpen={isOnboardingOpen} onComplete={() => setIsOnboardingOpen(false)} />
     </div>
   );
 };

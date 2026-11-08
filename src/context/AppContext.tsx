@@ -132,6 +132,11 @@ interface AppContextType {
   editingMeeting: Meeting | null;
   setEditingMeeting: (meeting: Meeting | null) => void;
 
+  // Onboarding & Demo management
+  isOnboardingOpen: boolean;
+  setIsOnboardingOpen: (open: boolean) => void;
+  loadDemoData: () => void;
+
   // AI & Assistant generator
   generateAISuggestions: () => void;
   resetAllData: () => void;
@@ -170,6 +175,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+
+  // Check if first-time user (Onboarding)
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    return !localStorage.getItem('mofakkira_onboarding_completed') && !localStorage.getItem(STORAGE_KEYS.PROFILE);
+  });
 
   // Sync to local storage
   useEffect(() => {
@@ -542,22 +552,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const convertDecisionToTask = (meetingId: string, decision: MeetingDecision) => {
+    // 1. Guard against accidental duplicate conversion
+    if (decision.convertedTaskId) {
+      alert('تم تحويل هذا القرار مسبقاً إلى مهمة عمل في جدول المهام.');
+      return;
+    }
+
+    const meeting = meetings.find(m => m.id === meetingId);
+
+    // 2. Derive appropriate priority instead of hardcoding 'عاجلة جداً'
+    const today = new Date().toISOString().split('T')[0];
+    let calculatedPriority: 'عاجلة جداً' | 'مهمة' | 'متوسطة' = 'مهمة';
+    if (decision.deadline) {
+      const daysDiff = Math.ceil((new Date(decision.deadline).getTime() - new Date(today).getTime()) / (1000 * 3600 * 24));
+      if (daysDiff <= 3) {
+        calculatedPriority = 'عاجلة جداً';
+      } else if (daysDiff <= 10) {
+        calculatedPriority = 'مهمة';
+      } else {
+        calculatedPriority = 'متوسطة';
+      }
+    }
+
+    // 3. Create the linked task with meeting and decision IDs
     const taskId = addTask({
       title: decision.decisionText,
-      description: `مهمة منبثقة عن قرار باجتماع: ${meetings.find(m => m.id === meetingId)?.title || ''}`,
+      description: `مهمة تنفيذية منبثقة عن اجتماع: "${meeting?.title || 'اجتماع مجلس'}" المنعقد بتاريخ ${meeting?.date || today}.`,
       category: 'الاجتماعات والمجالس',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: today,
       dueDate: decision.deadline || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
       dueTime: '12:00',
-      priority: 'عاجلة جداً',
+      priority: calculatedPriority,
       status: 'قيد التنفيذ',
       assignedTo: decision.responsible || schoolProfile.principalName,
       completionPercentage: 0,
-      checklist: [],
+      meetingId,
+      decisionId: decision.id,
+      checklist: [
+        { id: 'c-dec-1', text: 'مباشرة إجراءات تنفيذ القرار', completed: false },
+        { id: 'c-dec-2', text: 'إعداد تقرير الإنجاز وموافاة رئيس المؤسسة', completed: false }
+      ],
       attachments: []
     });
 
-    // Update decision with converted task id
+    // 4. Update the decision with the taskId and sync status
     setMeetings(prev => prev.map(m => {
       if (m.id === meetingId) {
         return {
@@ -568,6 +606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return m;
     }));
 
+    logActivity('تحويل قرار اجتماع إلى مهمة تنفيذية', 'meeting', decision.decisionText);
     confetti({ particleCount: 60, spread: 50 });
   };
 
@@ -649,6 +688,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Notification dispatch helper with anti-duplication
+  const addNotificationIfUnique = (notifData: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => {
+    setNotifications(prev => {
+      // Prevent duplicates: same title/message or same relatedId within recent records
+      const isDuplicate = prev.some(n =>
+        (n.relatedId && notifData.relatedId && n.relatedId === notifData.relatedId && n.type === notifData.type) ||
+        (n.title === notifData.title && n.message === notifData.message)
+      );
+      if (isDuplicate) return prev;
+
+      const newNotif: AppNotification = {
+        ...notifData,
+        id: 'notif-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+      return [newNotif, ...prev];
+    });
+  };
+
+  // Dynamic check for approaching deadlines & today's appointments
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Check overdue tasks
+    tasks.forEach(t => {
+      if (t.status !== 'مكتملة' && t.status !== 'ملغاة' && !t.isArchived && t.dueDate < todayStr) {
+        addNotificationIfUnique({
+          title: `مهمة متأخرة: ${t.title}`,
+          message: `المهمة كان أجلها في ${t.dueDate} ومسندة إلى ${t.assignedTo}.`,
+          type: 'task',
+          priority: 'high',
+          relatedId: t.id
+        });
+      }
+    });
+
+    // Check today's appointments
+    appointments.forEach(a => {
+      if (a.date === todayStr && !a.isCompleted) {
+        addNotificationIfUnique({
+          title: `موعد مبرمج اليوم: ${a.title}`,
+          message: `التوقيت: ${a.startTime} - المكان: ${a.location}`,
+          type: 'appointment',
+          priority: 'high',
+          relatedId: a.id
+        });
+      }
+    });
+  }, [tasks, appointments]);
+
   // Notifications
   const markNotificationAsRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -716,6 +806,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetAllData = () => {
     resetAllDataToDefault();
     setSchoolProfile(getInitialProfile());
+    setTasks([]);
+    setAppointments([]);
+    setOperations([]);
+    setMeetings([]);
+    setAnnualProgram([]);
+    setDailyNotes([]);
+    setNotifications([]);
+    setActivityLogs([]);
+    logActivity('إعادة تهيئة المفكرة ومسح السجلات', 'profile', 'بيئة جديدة');
+  };
+
+  const loadDemoData = () => {
+    resetAllDataToDefault();
+    // Load fresh demo seeds
+    setSchoolProfile(getInitialProfile());
     setTasks(getInitialTasks());
     setAppointments(getInitialAppointments());
     setOperations(getInitialOperations());
@@ -723,7 +828,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAnnualProgram(getInitialAnnualProgram());
     setDailyNotes(getInitialNotes());
     setNotifications(getInitialNotifications());
-    setActivityLogs([]);
+    logActivity('تحميل البيانات التجريبية الاستكشافية', 'profile', 'مدرسة نموذجية');
+    confetti({ particleCount: 70, spread: 60 });
   };
 
   return (
@@ -795,6 +901,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsMeetingModalOpen,
         editingMeeting,
         setEditingMeeting,
+        isOnboardingOpen,
+        setIsOnboardingOpen,
+        loadDemoData,
         generateAISuggestions,
         resetAllData
       }}
