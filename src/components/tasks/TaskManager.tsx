@@ -13,7 +13,8 @@ import {
   Paperclip,
   AlertTriangle,
   User,
-  Star
+  Star,
+  Archive
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import {
@@ -33,6 +34,7 @@ export const TaskManager: React.FC = () => {
     deleteTask,
     duplicateTask,
     carryOverTask,
+    archiveTask,
     setTaskStatus,
     updateTask
   } = useApp();
@@ -42,6 +44,7 @@ export const TaskManager: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [showArchived, setShowArchived] = useState(false);
 
   // Confirmation modal state for deletion
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
@@ -50,6 +53,8 @@ export const TaskManager: React.FC = () => {
 
   // Filtering
   const filteredTasks = tasks.filter(task => {
+    if (!showArchived && task.isArchived) return false;
+    if (showArchived && !task.isArchived) return false;
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase()) && !task.description.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
@@ -110,6 +115,16 @@ export const TaskManager: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Archive Toggle */}
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors border ${
+              showArchived ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950 dark:text-purple-300' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
+            }`}
+          >
+            {showArchived ? 'عرض المهام النشطة' : 'الأرشيف'}
+          </button>
+
           {/* View toggle */}
           <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center gap-1 border border-slate-200 dark:border-slate-700">
             <button
@@ -405,6 +420,15 @@ export const TaskManager: React.FC = () => {
                       title="تكرار المهمة"
                     >
                       <Copy className="w-4 h-4" />
+                    </button>
+
+                    {/* Archive button */}
+                    <button
+                      onClick={() => archiveTask(task.id)}
+                      className="p-1.5 text-slate-500 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/50"
+                      title={task.isArchived ? 'استعادة من الأرشيف' : 'أرشفة المهمة'}
+                    >
+                      <Archive className="w-4 h-4" />
                     </button>
 
                     {/* Delete button */}

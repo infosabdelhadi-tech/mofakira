@@ -11,7 +11,9 @@ import {
   Sparkles,
   TrendingUp,
   FileText,
-  BookMarked
+  BookMarked,
+  Users,
+  Compass
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -21,6 +23,8 @@ export const Dashboard: React.FC = () => {
     tasks,
     appointments,
     operations,
+    meetings,
+    annualProgram,
     setActiveTab,
     setIsTaskModalOpen,
     setIsAppointmentModalOpen,
@@ -210,24 +214,51 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Visual Progress Indicator Card */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-              <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                مؤشر الإنجاز العام للمؤسسة
-              </h3>
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  مؤشر الإنجاز العام للمؤسسة
+                </h3>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 rounded-full">
+                {completionRate}% مكتمل
+              </span>
             </div>
-            <span className="text-xs font-bold px-3 py-1 bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 rounded-full">
-              {completionRate}% مكتمل
-            </span>
+
+            <div className="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden mb-2">
+              <div
+                className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${completionRate}%` }}
+              />
+            </div>
           </div>
 
-          <div className="w-full bg-slate-100 dark:bg-slate-700 h-3 rounded-full overflow-hidden mb-3">
+          {/* Quick status bar: Council meetings & Annual Program */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-xs">
             <div
-              className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${completionRate}%` }}
-            />
+              onClick={() => setActiveTab('annual')}
+              className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between cursor-pointer hover:bg-teal-50 dark:hover:bg-slate-700/60 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-teal-600" />
+                <span className="font-bold text-slate-700 dark:text-slate-200">برنامج العمل السنوي:</span>
+              </div>
+              <span className="font-extrabold text-teal-600">{annualProgram.length} عملية</span>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('meetings')}
+              className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between cursor-pointer hover:bg-indigo-50 dark:hover:bg-slate-700/60 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-600" />
+                <span className="font-bold text-slate-700 dark:text-slate-200">محاضر المجالس:</span>
+              </div>
+              <span className="font-extrabold text-indigo-600">{meetings.length} مجالس</span>
+            </div>
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">

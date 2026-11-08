@@ -11,7 +11,9 @@ import {
   Settings,
   Bell,
   Clock,
-  Briefcase
+  Briefcase,
+  Users,
+  Compass
 } from 'lucide-react';
 import { useApp, type ActiveTab } from '../../context/AppContext';
 
@@ -28,7 +30,7 @@ export const MobileNav: React.FC = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isFabOpen, setIsFabOpen] = useState(false);
 
-  const pendingCount = tasks.filter(t => t.status !== 'مكتملة' && t.status !== 'ملغاة').length;
+  const pendingCount = tasks.filter(t => t.status !== 'مكتملة' && t.status !== 'ملغاة' && !t.isArchived).length;
 
   const handleTabClick = (tab: ActiveTab) => {
     setActiveTab(tab);
@@ -98,14 +100,30 @@ export const MobileNav: React.FC = () => {
       {/* "More" Sheet Modal on Mobile */}
       {isMoreMenuOpen && (
         <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs flex flex-col justify-end p-4 pb-24 md:hidden" onClick={() => setIsMoreMenuOpen(false)}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-1 animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-3 py-1">الأقسام الإضافية:</div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-1 animate-in fade-in zoom-in-95 max-h-[75vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-3 py-1">الأقسام التخصصية:</div>
+
+            <button
+              onClick={() => handleTabClick('annual')}
+              className="w-full flex items-center gap-3 p-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"
+            >
+              <Compass className="w-5 h-5 text-teal-600" />
+              <span>برنامج العمل السنوي</span>
+            </button>
+
+            <button
+              onClick={() => handleTabClick('meetings')}
+              className="w-full flex items-center gap-3 p-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"
+            >
+              <Users className="w-5 h-5 text-indigo-600" />
+              <span>المجالس والقرارات والمحاضر</span>
+            </button>
 
             <button
               onClick={() => handleTabClick('notebook')}
               className="w-full flex items-center gap-3 p-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"
             >
-              <BookMarked className="w-5 h-5 text-teal-600" />
+              <BookMarked className="w-5 h-5 text-emerald-600" />
               <span>المفكرة اليومية</span>
             </button>
 
@@ -113,7 +131,7 @@ export const MobileNav: React.FC = () => {
               onClick={() => handleTabClick('reports')}
               className="w-full flex items-center gap-3 p-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"
             >
-              <FileText className="w-5 h-5 text-indigo-600" />
+              <FileText className="w-5 h-5 text-amber-600" />
               <span>التقارير والإحصائيات والتصدير</span>
             </button>
 
@@ -121,7 +139,7 @@ export const MobileNav: React.FC = () => {
               onClick={() => handleTabClick('notifications')}
               className="w-full flex items-center gap-3 p-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"
             >
-              <Bell className="w-5 h-5 text-amber-600" />
+              <Bell className="w-5 h-5 text-rose-600" />
               <span>مركز الإشعارات والتذكيرات</span>
             </button>
 
@@ -202,7 +220,7 @@ export const MobileNav: React.FC = () => {
           <button
             onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
             className={`flex flex-col items-center py-1 transition-colors ${
-              isMoreMenuOpen || activeTab === 'notebook' || activeTab === 'reports' || activeTab === 'settings'
+              isMoreMenuOpen || activeTab === 'annual' || activeTab === 'meetings' || activeTab === 'notebook' || activeTab === 'reports' || activeTab === 'settings'
                 ? 'text-teal-600 dark:text-teal-400 font-semibold'
                 : 'text-slate-500 dark:text-slate-400'
             }`}

@@ -1,4 +1,13 @@
-import type { SchoolProfile, Task, Appointment, Operation, DailyNote, AppNotification } from '../types';
+import type {
+  SchoolProfile,
+  Task,
+  Appointment,
+  Operation,
+  DailyNote,
+  AppNotification,
+  Meeting,
+  AnnualProgramItem
+} from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
   schoolName: 'مدرسة المسيرة الخضراء الابتدائية',
@@ -34,6 +43,11 @@ export const initialTasks: Task[] = [
     notes: 'تم استلام الرغبات ويجري التنسيق مع السادة المفتشين التربويين.',
     completionPercentage: 75,
     isPinned: true,
+    operationId: 'op-1',
+    history: [
+      { id: 'h1', timestamp: getTodayString(-3) + 'T09:00:00Z', action: 'إنشاء المهمة', user: 'السيد المدير' },
+      { id: 'h2', timestamp: getTodayString(-1) + 'T14:30:00Z', action: 'تحديث نسبة الإنجاز إلى 75%', user: 'السيد المدير' }
+    ],
     checklist: [
       { id: 'c1', text: 'حصر أعداد التلاميذ والأفواج المسجلة', completed: true },
       { id: 'c2', text: 'توزيع القاعات والتوقيت', completed: true },
@@ -102,6 +116,7 @@ export const initialTasks: Task[] = [
     assignedTo: 'رئيس المؤسسة',
     notes: 'تمت المصادقة على النظام الداخلي للمؤسسة وبرنامج العمل السنوي.',
     completionPercentage: 100,
+    operationId: 'op-2',
     checklist: [
       { id: 'c9', text: 'توجيه الاستدعاءات كتابياً', completed: true },
       { id: 'c10', text: 'توفير محضر الاجتماع وسجل التوقيعات', completed: true },
@@ -126,6 +141,7 @@ export const initialTasks: Task[] = [
     assignedTo: 'المنسق التربوي + أطر التدريس',
     notes: 'إعداد مصفوفة التعثرات وفق مقاربة التدريس وفق المستوى المناسب (TaRL).',
     completionPercentage: 60,
+    operationId: 'op-1',
     checklist: [
       { id: 'c12', text: 'تمرير الروائز التشخيصية في القراءة والرياضيات', completed: true },
       { id: 'c13', text: 'مسك النقاط عبر منظومة مسار', completed: true },
@@ -218,6 +234,8 @@ export const initialOperations: Operation[] = [
     notes: 'تم إنجاز التشخيص التشاركي بنجاح وسيتم الانتقال لمرحلة برمجة الأنشطة ذات الأولوية.',
     progress: 50,
     status: 'قيد التنفيذ',
+    academicYear: '2024 - 2025',
+    monthPlan: 'أكتوبر (Octobre)',
     phases: [
       {
         id: 'p1',
@@ -288,6 +306,8 @@ export const initialOperations: Operation[] = [
     indicators: 'عقد 100% من الاجتماعات القانونية وتوثيق كافة المحاضر',
     progress: 75,
     status: 'قيد التنفيذ',
+    academicYear: '2024 - 2025',
+    monthPlan: 'شتنبر (Septembre)',
     phases: [
       {
         id: 'p6',
@@ -345,6 +365,8 @@ export const initialOperations: Operation[] = [
     indicators: 'انعدام الغش وتوزيع النتائج في الآجال المحددة مع استثمار مسار بنسبة 100%',
     progress: 0,
     status: 'مبرمجة',
+    academicYear: '2024 - 2025',
+    monthPlan: 'يناير (Janvier)',
     phases: [
       {
         id: 'p10',
@@ -397,6 +419,7 @@ export const initialDailyNotes: DailyNote[] = [
     title: 'انطلاق الحصص الصباحية في ظروف ممتازة',
     content: 'حضور جميع أطر التدريس في الوقت المحدد، وبلغت نسبة حضور التلاميذ 98%. تم تسجيل غياب مبرر لأستاذة المستوى الثالث وتم تكليف أستاذ الدعم بالتعويض تفادياً لهدر الحصص.',
     tags: ['دخول مدرسي', 'انضباط'],
+    linkedTaskId: 'task-1',
     createdAt: getTodayString(0) + 'T08:45:00.000Z',
     updatedAt: getTodayString(0) + 'T08:45:00.000Z'
   },
@@ -408,6 +431,7 @@ export const initialDailyNotes: DailyNote[] = [
     title: 'تنسيق بخصوص المتعلمين المتعثرين في القراءة',
     content: 'اتفاق مع أساتذة المستويين الثالث والرابع على إدراج أنشطة القراءة السريعة والألعاب اللغوية لمدة 15 دقيقة في بداية كل حصة لتعزيز الطلاقة اللغوية.',
     tags: ['الدعم التربوي', 'القراءة'],
+    linkedOperationId: 'op-1',
     createdAt: getTodayString(0) + 'T11:15:00.000Z',
     updatedAt: getTodayString(0) + 'T11:15:00.000Z'
   },
@@ -421,6 +445,163 @@ export const initialDailyNotes: DailyNote[] = [
     tags: ['صيانة', 'سلامة'],
     createdAt: getTodayString(-1) + 'T14:20:00.000Z',
     updatedAt: getTodayString(-1) + 'T14:20:00.000Z'
+  }
+];
+
+export const initialMeetings: Meeting[] = [
+  {
+    id: 'meet-1',
+    title: 'الدورة العادية الأولى لمجلس التدبير',
+    type: 'مجلس التدبير',
+    date: getTodayString(-5),
+    time: '15:00 - 17:30',
+    location: 'قاعة الاجتماعات الكبرى بالمؤسسة',
+    attendees: 'رئيس المؤسسة (رئيساً)، ممثل الأطر التعليمية (3)، ممثل الأطر الإدارية، رئيس جمعية الآباء، ممثل المجلس الجماعي',
+    agenda: [
+      'الاطلاع على تقرير الدخول المدرسي 2024-2025 ومؤشرات التمدرس',
+      'دراسة والمصادقة على مشروع النظام الداخلي للمؤسسة',
+      'مناقشة وإقرار مشروع الميزانية التقديرية وبرنامج العمل السنوي'
+    ],
+    discussionPoints: 'تمت مناقشة سبل تأمين المحيط المدرسي وتحسين خدمة الإطعام المدرسي، كما تم التنويه بانضباط أطر التدريس وارتفاع نسبة التسجيل برسم الموسم الحالي.',
+    decisions: [
+      {
+        id: 'dec-1',
+        decisionText: 'المصادقة بالإجماع على النظام الداخلي للمؤسسة بعد إدراج تعديلات حول استعمال الهواتف الذكية.',
+        responsible: 'رئيس المؤسسة',
+        deadline: getTodayString(2),
+        status: 'تم التنفيذ'
+      },
+      {
+        id: 'dec-2',
+        decisionText: 'توجيه مراسلة للمجلس الجماعي قصد تجديد علامات التشوير الطرقي وممر الراجلين أمام باب المؤسسة.',
+        responsible: 'رئيس المؤسسة + رئيس جمعية الآباء',
+        deadline: getTodayString(7),
+        status: 'قيد التنفيذ'
+      },
+      {
+        id: 'dec-3',
+        decisionText: 'برمجة حصص تحسيسية أسبوعية حول النظافة والمحافظة على البيئة المدرسية.',
+        responsible: 'منسق نادي البيئة والصحة',
+        deadline: getTodayString(14),
+        status: 'قيد الانتظار'
+      }
+    ],
+    minutes: 'افتتح الاجتماع بكلمة ترحيبية للسيد الرئيس ذكر فيها بجدول الأعمال والسياق الوطني لتنزيل خارطة الطريق 2022-2026. بعد نقاش بناء ومستفيض صادق المجلس على كافة النقاط المدرجة في جدول الأعمال ورفعت الجلسة في أجواء يسودها حس المسؤولية والتعاون.',
+    academicYear: '2024 - 2025',
+    createdAt: getTodayString(-5),
+    updatedAt: getTodayString(-5)
+  },
+  {
+    id: 'meet-2',
+    title: 'اجتماع المجلس التربوي لتحليل نتائج التقويم التشخيصي',
+    type: 'المجلس التربوي',
+    date: getTodayString(2),
+    time: '16:00 - 18:00',
+    location: 'مكتب الإدارة',
+    attendees: 'السيد المدير، منسقو المواد والمستويات، ممثل جمعية الآباء',
+    agenda: [
+      'استعراض الحصيلة الإحصائية لروائز التقويم التشخيصي في اللغات والرياضيات',
+      'تسطير خطة الدعم التربوي المركز وبرمجة ساعات المعالجة البيداغوجية',
+      'تفعيل أنشطة أندية الحياة المدرسية'
+    ],
+    discussionPoints: 'تحديد مكامن الضعف في التحكم في الحساب الذهني والقراءة باللغة الفرنسية للمستوى الرابع.',
+    decisions: [
+      {
+        id: 'dec-4',
+        decisionText: 'تخصيص ربع ساعة قراءة صامتة يومية لكافة المستويات قبل انطلاق الحصص.',
+        responsible: 'جميع أطر التدريس',
+        deadline: getTodayString(4),
+        status: 'قيد الانتظار'
+      }
+    ],
+    minutes: 'اجتماع تحضيري لتنزيل برنامج الدعم المؤسساتي.',
+    academicYear: '2024 - 2025',
+    createdAt: getTodayString(-1),
+    updatedAt: getTodayString(-1)
+  }
+];
+
+export const initialAnnualProgram: AnnualProgramItem[] = [
+  {
+    id: 'an-1',
+    academicYear: '2024 - 2025',
+    month: 'شتنبر (Septembre)',
+    title: 'عمليات الاستقبال والدخول المدرسي وتوزيع اللوازم المدرسية',
+    category: 'الإدارة والتدبير',
+    objective: 'التحاق كافة التلميذات والتلاميذ وضمان الانطلاقة الفعلية للدراسة في الوقت المحدد.',
+    targetDate: '2024-09-15',
+    responsible: 'رئيس المؤسسة + الفريق التربوي',
+    indicators: 'نسبة التحاق تفوق 98% وتوزيع المحافظ في اليوم الأول',
+    status: 'مكتملة',
+    completionPercentage: 100,
+    operationId: 'op-2'
+  },
+  {
+    id: 'an-2',
+    academicYear: '2024 - 2025',
+    month: 'أكتوبر (Octobre)',
+    title: 'تمرير روائز التقويم التشخيصي وتأسيس مجالس المؤسسة',
+    category: 'الشؤون التربوية',
+    objective: 'تشخيص التعلمات ورصد التعثرات وتجديد هياكل الحكامة المدرسية.',
+    targetDate: '2024-10-20',
+    responsible: 'المجلس التربوي ولجنة الانتخابات',
+    indicators: 'مسك 100% من النقط في منظومة مسار وتجديد مجلس التدبير',
+    status: 'قيد التنفيذ',
+    completionPercentage: 70,
+    operationId: 'op-1'
+  },
+  {
+    id: 'an-3',
+    academicYear: '2024 - 2025',
+    month: 'نونبر (Novembre)',
+    title: 'تخليد ذكرى المسيرة الخضراء وعيد الاستقلال وتنظيم الدعم التربوي',
+    category: 'الأنشطة والمناسبات',
+    objective: 'تعزيز قيم المواطنة والانتماء الوطني وتفعيل أنشطة أندية الحياة المدرسية.',
+    targetDate: '2024-11-25',
+    responsible: 'أندية الحياة المدرسية + الأساتذة',
+    indicators: 'مشاركة 85% من التلاميذ في الأنشطة الثقافية والفنية',
+    status: 'مبرمجة',
+    completionPercentage: 15
+  },
+  {
+    id: 'an-4',
+    academicYear: '2024 - 2025',
+    month: 'يناير (Janvier)',
+    title: 'امتحانات المراقبة المستمرة والامتحان الموحد لنهاية الأسدس الأول',
+    category: 'الشؤون التربوية',
+    objective: 'تقويم مكتسبات الفصل الأول واستثمار مجالس الأقسام وإصدار بيانات النقط.',
+    targetDate: '2025-01-28',
+    responsible: 'لجنة الامتحانات والإدارة',
+    indicators: 'انعدام الشكايات وتوزيع البيانات قبل بداية عطلة نهاية الأسدس',
+    status: 'مبرمجة',
+    completionPercentage: 0,
+    operationId: 'op-3'
+  },
+  {
+    id: 'an-5',
+    academicYear: '2024 - 2025',
+    month: 'ماي (Mai)',
+    title: 'تنظيم أسبوع الصحة المدرسية والبيئة والأولمبياد التربوي',
+    category: 'الحياة المدرسية',
+    objective: 'تتويج مشاريع الأندية والارتقاء بالفضاء البيئي للمؤسسة.',
+    targetDate: '2025-05-20',
+    responsible: 'منسقو الأندية وشركاء المؤسسة',
+    indicators: 'تنظيم معرض للأعمال المتميزة ومسابقات رياضية وثقافية',
+    status: 'مبرمجة',
+    completionPercentage: 0
+  },
+  {
+    id: 'an-6',
+    academicYear: '2024 - 2025',
+    month: 'يونيو (Juin)',
+    title: 'امتحانات نهاية السنة الدراسية ومجالس التحصيل وتوزيع الجوائز',
+    category: 'الشؤون التربوية',
+    objective: 'اختتام الموسم الدراسي وتقويم الأهداف المسطرة في مشروع المؤسسة.',
+    targetDate: '2025-06-30',
+    responsible: 'مجلس التدبير والإدارة التربوية',
+    indicators: 'نسبة نجاح سنوية تتجاوز 94% وتنظيم حفل التميز السنوي',
+    status: 'مبرمجة',
+    completionPercentage: 0
   }
 ];
 

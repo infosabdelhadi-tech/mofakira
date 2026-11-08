@@ -12,6 +12,9 @@ import { CalendarManager } from './components/calendar/CalendarManager';
 import { AppointmentModal } from './components/calendar/AppointmentModal';
 import { OperationsManager } from './components/operations/OperationsManager';
 import { OperationModal } from './components/operations/OperationModal';
+import { MeetingsManager } from './components/meetings/MeetingsManager';
+import { MeetingModal } from './components/meetings/MeetingModal';
+import { AnnualPlanManager } from './components/annual/AnnualPlanManager';
 import { DailyNotebook } from './components/notes/DailyNotebook';
 import { NotificationDrawer } from './components/notifications/NotificationDrawer';
 import { ReportsManager } from './components/reports/ReportsManager';
@@ -33,10 +36,12 @@ export const AppContent: React.FC = () => {
         {/* Dynamic Main View */}
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 min-w-0 overflow-y-auto">
           {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'notebook' && <DailyNotebook />}
+          {activeTab === 'annual' && <AnnualPlanManager />}
           {activeTab === 'tasks' && <TaskManager />}
           {activeTab === 'calendar' && <CalendarManager />}
           {activeTab === 'operations' && <OperationsManager />}
+          {activeTab === 'meetings' && <MeetingsManager />}
+          {activeTab === 'notebook' && <DailyNotebook />}
           {activeTab === 'reports' && <ReportsManager />}
           {activeTab === 'notifications' && <DailyNotebook />}
           {activeTab === 'settings' && <SettingsManager />}
@@ -52,6 +57,7 @@ export const AppContent: React.FC = () => {
       <TaskModal />
       <AppointmentModal />
       <OperationModal />
+      <MeetingModal />
     </div>
   );
 };

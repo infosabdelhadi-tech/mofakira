@@ -8,7 +8,10 @@ import type {
   DailyNote,
   AppNotification,
   ActivityLog,
-  TaskStatus
+  TaskStatus,
+  Meeting,
+  MeetingDecision,
+  AnnualProgramItem
 } from '../types';
 import {
   getInitialProfile,
@@ -16,6 +19,8 @@ import {
   getInitialAppointments,
   getInitialOperations,
   getInitialNotes,
+  getInitialMeetings,
+  getInitialAnnualProgram,
   getInitialNotifications,
   getInitialLogs,
   saveToStorage,
@@ -23,7 +28,17 @@ import {
   resetAllDataToDefault
 } from '../utils/storage';
 
-export type ActiveTab = 'dashboard' | 'notebook' | 'tasks' | 'calendar' | 'operations' | 'reports' | 'notifications' | 'settings';
+export type ActiveTab =
+  | 'dashboard'
+  | 'notebook'
+  | 'tasks'
+  | 'calendar'
+  | 'operations'
+  | 'annual'
+  | 'meetings'
+  | 'reports'
+  | 'notifications'
+  | 'settings';
 
 interface AppContextType {
   // Navigation & UI state
@@ -42,11 +57,12 @@ interface AppContextType {
 
   // Tasks
   tasks: Task[];
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => string;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   duplicateTask: (id: string) => void;
   carryOverTask: (id: string) => void;
+  archiveTask: (id: string) => void;
   setTaskStatus: (id: string, status: TaskStatus) => void;
 
   // Appointments
@@ -58,10 +74,25 @@ interface AppContextType {
 
   // Operations
   operations: Operation[];
-  addOperation: (op: Omit<Operation, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addOperation: (op: Omit<Operation, 'id' | 'createdAt' | 'updatedAt'>) => string;
   updateOperation: (id: string, updates: Partial<Operation>) => void;
   deleteOperation: (id: string) => void;
   updatePhaseStatus: (operationId: string, phaseId: string, status: 'مبرمجة' | 'قيد التنفيذ' | 'مكتملة' | 'متأخرة') => void;
+
+  // Meetings & Decision Tracking
+  meetings: Meeting[];
+  addMeeting: (meeting: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateMeeting: (id: string, updates: Partial<Meeting>) => void;
+  deleteMeeting: (id: string) => void;
+  convertDecisionToTask: (meetingId: string, decision: MeetingDecision) => void;
+  updateDecisionStatus: (meetingId: string, decisionId: string, status: MeetingDecision['status']) => void;
+
+  // Annual Work Program
+  annualProgram: AnnualProgramItem[];
+  addAnnualItem: (item: Omit<AnnualProgramItem, 'id'>) => void;
+  updateAnnualItem: (id: string, updates: Partial<AnnualProgramItem>) => void;
+  deleteAnnualItem: (id: string) => void;
+  cloneAnnualPlanToNewYear: (sourceYear: string, targetYear: string) => void;
 
   // Daily Notes
   dailyNotes: DailyNote[];
@@ -96,6 +127,11 @@ interface AppContextType {
   editingOperation: Operation | null;
   setEditingOperation: (op: Operation | null) => void;
 
+  isMeetingModalOpen: boolean;
+  setIsMeetingModalOpen: (open: boolean) => void;
+  editingMeeting: Meeting | null;
+  setEditingMeeting: (meeting: Meeting | null) => void;
+
   // AI & Assistant generator
   generateAISuggestions: () => void;
   resetAllData: () => void;
@@ -116,6 +152,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [tasks, setTasks] = useState<Task[]>(getInitialTasks);
   const [appointments, setAppointments] = useState<Appointment[]>(getInitialAppointments);
   const [operations, setOperations] = useState<Operation[]>(getInitialOperations);
+  const [meetings, setMeetings] = useState<Meeting[]>(getInitialMeetings);
+  const [annualProgram, setAnnualProgram] = useState<AnnualProgramItem[]>(getInitialAnnualProgram);
   const [dailyNotes, setDailyNotes] = useState<DailyNote[]>(getInitialNotes);
   const [notifications, setNotifications] = useState<AppNotification[]>(getInitialNotifications);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(getInitialLogs);
@@ -129,6 +167,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isOperationModalOpen, setIsOperationModalOpen] = useState(false);
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
+
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
 
   // Sync to local storage
   useEffect(() => {
@@ -146,6 +187,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.OPERATIONS, operations);
   }, [operations]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.MEETINGS, meetings);
+  }, [meetings]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.ANNUAL_PROGRAM, annualProgram);
+  }, [annualProgram]);
 
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.NOTES, dailyNotes);
@@ -188,23 +237,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity('تحديث بيانات المؤسسة', 'profile', profile.schoolName);
   };
 
+  // Bidirectional link: check if updating a task should update operation progress
+  const recalculateOperationProgress = (opId: string, currentTasks: Task[]) => {
+    const linkedTasks = currentTasks.filter(t => t.operationId === opId);
+    if (linkedTasks.length === 0) return;
+    const completedTasks = linkedTasks.filter(t => t.status === 'مكتملة').length;
+    const taskProgress = Math.round((completedTasks / linkedTasks.length) * 100);
+
+    setOperations(prevOps => prevOps.map(op => {
+      if (op.id === opId) {
+        const combinedProgress = Math.max(op.progress, taskProgress);
+        return {
+          ...op,
+          progress: combinedProgress,
+          status: combinedProgress === 100 ? 'مكتملة' : (combinedProgress > 0 ? 'قيد التنفيذ' : op.status),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return op;
+    }));
+  };
+
   // Task methods
-  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): string => {
     const now = new Date().toISOString();
+    const id = 'task-' + Date.now();
     const newTask: Task = {
       ...taskData,
-      id: 'task-' + Date.now(),
+      id,
       createdAt: now.split('T')[0],
-      updatedAt: now
+      updatedAt: now,
+      history: [
+        { id: 'h-' + Date.now(), timestamp: now, action: 'إنشاء المهمة', user: schoolProfile.principalName }
+      ]
     };
-    setTasks(prev => [newTask, ...prev]);
+    const updatedTasks = [newTask, ...tasks];
+    setTasks(updatedTasks);
     logActivity('إضافة مهمة جديدة', 'task', newTask.title);
+
+    if (newTask.operationId) {
+      recalculateOperationProgress(newTask.operationId, updatedTasks);
+    }
+    return id;
   };
 
   const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(t => {
+    const now = new Date().toISOString();
+    let updatedTarget: Task | undefined;
+
+    const nextTasks = tasks.map(t => {
       if (t.id === id) {
-        const updated = { ...t, ...updates, updatedAt: new Date().toISOString() };
+        const historyUpdate = [
+          ...(t.history || []),
+          { id: 'h-' + Date.now(), timestamp: now, action: updates.status ? `تغيير الحالة إلى ${updates.status}` : 'تعديل تفاصيل المهمة', user: schoolProfile.principalName }
+        ];
+
+        const updated = {
+          ...t,
+          ...updates,
+          history: historyUpdate,
+          updatedAt: now
+        };
+        updatedTarget = updated;
+
         if (updates.status === 'مكتملة' && t.status !== 'مكتملة') {
           confetti({
             particleCount: 80,
@@ -215,8 +310,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return updated;
       }
       return t;
-    }));
+    });
+
+    setTasks(nextTasks);
     logActivity('تعديل مهمة', 'task', updates.title || id);
+
+    if (updatedTarget?.operationId) {
+      recalculateOperationProgress(updatedTarget.operationId, nextTasks);
+    }
   };
 
   const deleteTask = (id: string) => {
@@ -224,6 +325,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTasks(prev => prev.filter(t => t.id !== id));
     if (target) {
       logActivity('حذف مهمة', 'task', target.title);
+      if (target.operationId) {
+        recalculateOperationProgress(target.operationId, tasks.filter(t => t.id !== id));
+      }
     }
   };
 
@@ -238,10 +342,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'جديدة',
       completionPercentage: 0,
       createdAt: now.split('T')[0],
-      updatedAt: now
+      updatedAt: now,
+      history: [
+        { id: 'h-' + Date.now(), timestamp: now, action: 'نسخ المهمة', user: schoolProfile.principalName }
+      ]
     };
     setTasks(prev => [duplicated, ...prev]);
     logActivity('نسخ مهمة', 'task', duplicated.title);
+  };
+
+  const archiveTask = (id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, isArchived: !t.isArchived, updatedAt: new Date().toISOString() } : t));
+    logActivity('أرشفة / استعادة مهمة', 'task', id);
   };
 
   const carryOverTask = (id: string) => {
@@ -276,7 +388,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return appointments.find(a => {
       if (excludeId && a.id === excludeId) return false;
       if (a.date !== newApt.date) return false;
-      // Overlap calculation: (StartA < EndB) and (EndA > StartB)
       const startA = a.startTime;
       const endA = a.endTime;
       const startB = newApt.startTime || '';
@@ -334,16 +445,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Operations
-  const addOperation = (opData: Omit<Operation, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addOperation = (opData: Omit<Operation, 'id' | 'createdAt' | 'updatedAt'>): string => {
     const now = new Date().toISOString();
+    const id = 'op-' + Date.now();
     const newOp: Operation = {
       ...opData,
-      id: 'op-' + Date.now(),
+      id,
       createdAt: now,
       updatedAt: now
     };
     setOperations(prev => [newOp, ...prev]);
     logActivity('برمجة عملية جديدة', 'operation', newOp.title);
+    return id;
   };
 
   const updateOperation = (id: string, updates: Partial<Operation>) => {
@@ -382,7 +495,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return p;
         });
 
-        // Calculate progress percentage
         const completedCount = updatedPhases.filter(p => p.status === 'مكتملة').length;
         const progress = Math.round((completedCount / (updatedPhases.length || 1)) * 100);
         const opStatus = progress === 100 ? 'مكتملة' : (progress > 0 ? 'قيد التنفيذ' : 'مبرمجة');
@@ -401,6 +513,114 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return op;
     }));
+  };
+
+  // Meetings & Decision Tracking
+  const addMeeting = (meetingData: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const now = new Date().toISOString();
+    const newMeeting: Meeting = {
+      ...meetingData,
+      id: 'meet-' + Date.now(),
+      createdAt: now,
+      updatedAt: now
+    };
+    setMeetings(prev => [newMeeting, ...prev]);
+    logActivity('توثيق اجتماع أو مجلس جديد', 'meeting', newMeeting.title);
+  };
+
+  const updateMeeting = (id: string, updates: Partial<Meeting>) => {
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...updates, updatedAt: new Date().toISOString() } : m));
+    logActivity('تعديل محضر اجتماع', 'meeting', updates.title || id);
+  };
+
+  const deleteMeeting = (id: string) => {
+    const target = meetings.find(m => m.id === id);
+    setMeetings(prev => prev.filter(m => m.id !== id));
+    if (target) {
+      logActivity('حذف اجتماع', 'meeting', target.title);
+    }
+  };
+
+  const convertDecisionToTask = (meetingId: string, decision: MeetingDecision) => {
+    const taskId = addTask({
+      title: decision.decisionText,
+      description: `مهمة منبثقة عن قرار باجتماع: ${meetings.find(m => m.id === meetingId)?.title || ''}`,
+      category: 'الاجتماعات والمجالس',
+      startDate: new Date().toISOString().split('T')[0],
+      dueDate: decision.deadline || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      dueTime: '12:00',
+      priority: 'عاجلة جداً',
+      status: 'قيد التنفيذ',
+      assignedTo: decision.responsible || schoolProfile.principalName,
+      completionPercentage: 0,
+      checklist: [],
+      attachments: []
+    });
+
+    // Update decision with converted task id
+    setMeetings(prev => prev.map(m => {
+      if (m.id === meetingId) {
+        return {
+          ...m,
+          decisions: m.decisions.map(d => d.id === decision.id ? { ...d, convertedTaskId: taskId, status: 'قيد التنفيذ' } : d)
+        };
+      }
+      return m;
+    }));
+
+    confetti({ particleCount: 60, spread: 50 });
+  };
+
+  const updateDecisionStatus = (meetingId: string, decisionId: string, status: MeetingDecision['status']) => {
+    setMeetings(prev => prev.map(m => {
+      if (m.id === meetingId) {
+        return {
+          ...m,
+          decisions: m.decisions.map(d => d.id === decisionId ? { ...d, status } : d)
+        };
+      }
+      return m;
+    }));
+  };
+
+  // Annual Work Program
+  const addAnnualItem = (itemData: Omit<AnnualProgramItem, 'id'>) => {
+    const newItem: AnnualProgramItem = {
+      ...itemData,
+      id: 'an-' + Date.now()
+    };
+    setAnnualProgram(prev => [...prev, newItem]);
+    logActivity('إضافة نشاط لبرنامج العمل السنوي', 'annual', newItem.title);
+  };
+
+  const updateAnnualItem = (id: string, updates: Partial<AnnualProgramItem>) => {
+    setAnnualProgram(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+    logActivity('تعديل نشاط بالبرنامج السنوي', 'annual', updates.title || id);
+  };
+
+  const deleteAnnualItem = (id: string) => {
+    const target = annualProgram.find(i => i.id === id);
+    setAnnualProgram(prev => prev.filter(i => i.id !== id));
+    if (target) {
+      logActivity('حذف نشاط من البرنامج السنوي', 'annual', target.title);
+    }
+  };
+
+  const cloneAnnualPlanToNewYear = (sourceYear: string, targetYear: string) => {
+    const sourceItems = annualProgram.filter(i => i.academicYear === sourceYear);
+    if (sourceItems.length === 0) return;
+
+    const clonedItems: AnnualProgramItem[] = sourceItems.map(item => ({
+      ...item,
+      id: 'an-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+      academicYear: targetYear,
+      status: 'مبرمجة',
+      completionPercentage: 0
+    }));
+
+    setAnnualProgram(prev => [...prev, ...clonedItems]);
+    logActivity(`استنساخ برنامج العمل السنوي من ${sourceYear} إلى ${targetYear}`, 'annual', targetYear);
+    confetti({ particleCount: 70, spread: 60 });
   };
 
   // Daily Notes
@@ -448,7 +668,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  // AI-powered Suggestions & Weekly Planner Heuristic
+  // AI-powered Suggestions
   const generateAISuggestions = () => {
     const sampleAISuggestions: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>[] = [
       {
@@ -499,6 +719,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTasks(getInitialTasks());
     setAppointments(getInitialAppointments());
     setOperations(getInitialOperations());
+    setMeetings(getInitialMeetings());
+    setAnnualProgram(getInitialAnnualProgram());
     setDailyNotes(getInitialNotes());
     setNotifications(getInitialNotifications());
     setActivityLogs([]);
@@ -523,6 +745,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTask,
         duplicateTask,
         carryOverTask,
+        archiveTask,
         setTaskStatus,
         appointments,
         addAppointment,
@@ -534,6 +757,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateOperation,
         deleteOperation,
         updatePhaseStatus,
+        meetings,
+        addMeeting,
+        updateMeeting,
+        deleteMeeting,
+        convertDecisionToTask,
+        updateDecisionStatus,
+        annualProgram,
+        addAnnualItem,
+        updateAnnualItem,
+        deleteAnnualItem,
+        cloneAnnualPlanToNewYear,
         dailyNotes,
         addDailyNote,
         updateDailyNote,
@@ -557,6 +791,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsOperationModalOpen,
         editingOperation,
         setEditingOperation,
+        isMeetingModalOpen,
+        setIsMeetingModalOpen,
+        editingMeeting,
+        setEditingMeeting,
         generateAISuggestions,
         resetAllData
       }}

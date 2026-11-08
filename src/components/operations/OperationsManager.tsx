@@ -11,7 +11,8 @@ import {
   AlertCircle,
   FileText,
   Search,
-  Sparkles
+  Sparkles,
+  CheckSquare
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import type { Operation, OperationPhaseStatus } from '../../types';
@@ -19,10 +20,13 @@ import type { Operation, OperationPhaseStatus } from '../../types';
 export const OperationsManager: React.FC = () => {
   const {
     operations,
+    tasks,
     setIsOperationModalOpen,
     setEditingOperation,
     deleteOperation,
     updatePhaseStatus,
+    setEditingTask,
+    setIsTaskModalOpen,
     setActiveTab
   } = useApp();
 
@@ -103,6 +107,7 @@ export const OperationsManager: React.FC = () => {
         {filteredOps.map(op => {
           const isExpanded = expandedOpId === op.id;
           const completedPhases = op.phases.filter(p => p.status === 'مكتملة').length;
+          const linkedTasks = tasks.filter(t => t.operationId === op.id);
 
           return (
             <div
@@ -276,6 +281,49 @@ export const OperationsManager: React.FC = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Linked Tasks Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <CheckSquare className="w-4 h-4 text-teal-600" />
+                        <span>المهام المرتبطة بهذه العملية ({linkedTasks.length})</span>
+                      </h4>
+
+                      <button
+                        onClick={() => {
+                          setEditingTask(null);
+                          setIsTaskModalOpen(true);
+                        }}
+                        className="text-xs text-teal-600 hover:underline font-bold flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>إضافة مهمة للعملية</span>
+                      </button>
+                    </div>
+
+                    {linkedTasks.length === 0 ? (
+                      <div className="text-xs text-slate-400 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                        لا توجد مهام مستقلة مرتبطة بهذه العملية حالياً.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {linkedTasks.map(t => (
+                          <div
+                            key={t.id}
+                            onClick={() => {
+                              setEditingTask(t);
+                              setIsTaskModalOpen(true);
+                            }}
+                            className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-between cursor-pointer hover:border-teal-400"
+                          >
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{t.title}</span>
+                            <span className="text-[10px] text-teal-600 font-bold">{t.completionPercentage}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Operation Quick Actions */}
