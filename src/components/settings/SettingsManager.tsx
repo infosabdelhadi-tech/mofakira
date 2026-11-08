@@ -181,19 +181,21 @@ export const SettingsManager: React.FC = () => {
                 <select
                   value={form.academicYear}
                   onChange={e => setForm({ ...form, academicYear: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100"
+                  dir="ltr"
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100 text-right font-mono"
                 >
                   {availableYears.map(yr => (
-                    <option key={yr} value={yr}>{yr}</option>
+                    <option key={yr} value={yr} dir="ltr">{yr}</option>
                   ))}
                 </select>
                 <input
                   type="text"
                   value={form.academicYear}
                   onChange={e => setForm({ ...form, academicYear: e.target.value })}
-                  placeholder="موسم مخصص"
+                  dir="ltr"
+                  placeholder="2026 - 2027"
                   title="أو أدخل صيغة موسم أخرى يدوياً"
-                  className="w-28 px-2 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-center"
+                  className="w-32 px-2 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-center font-mono"
                 />
               </div>
             </div>

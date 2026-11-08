@@ -13,6 +13,16 @@ export const getCurrentAcademicYear = (d = new Date()): string => {
 };
 
 /**
+ * Formats academic year to guarantee standard display order (e.g. 2026 - 2027)
+ * using LTR embedding markers to prevent bi-directional swapping in Arabic RTL layouts.
+ */
+export const formatAcademicYearLTR = (yearStr: string): string => {
+  if (!yearStr) return '';
+  // Wrap with Left-to-Right Embedding (\u202A) and Pop Directional Formatting (\u202C)
+  return `\u202A${yearStr}\u202C`;
+};
+
+/**
  * Generates selectable Moroccan academic years (e.g. current year +/- 2 years)
  */
 export const getAvailableAcademicYears = (d = new Date()): string[] => {

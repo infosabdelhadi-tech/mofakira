@@ -115,10 +115,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
                     <select
                       value={formData.academicYear}
                       onChange={e => setFormData({ ...formData, academicYear: e.target.value })}
-                      className="w-full pl-2 pr-9 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100"
+                      dir="ltr"
+                      className="w-full pl-2 pr-9 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 text-right"
                     >
                       {availableYears.map(yr => (
-                        <option key={yr} value={yr}>{yr}</option>
+                        <option key={yr} value={yr} dir="ltr">{yr}</option>
                       ))}
                     </select>
                   </div>

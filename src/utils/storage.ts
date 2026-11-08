@@ -56,7 +56,7 @@ export const saveToStorage = <T>(key: string, data: T): boolean => {
         localStorage.removeItem(STORAGE_KEYS.LOGS);
         localStorage.setItem(key, JSON.stringify(data));
         return true;
-      } catch (retryErr) {
+      } catch {
         alert('تنبيه: امتلاء مساحة التخزين المؤقت بالمتصفح! يرجى تحميل نسخة احتياطية من الإعدادات وإفراغ بعض المساحة.');
       }
     }
@@ -187,7 +187,7 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       },
       data: parsed as BackupDataStructure
     };
-  } catch (err) {
+  } catch {
     return { isValid: false, error: 'تعذر فك تشفير الملف. تأكد من أنه ملف JSON سليم.' };
   }
 };

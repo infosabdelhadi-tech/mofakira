@@ -64,9 +64,10 @@ export const Dashboard: React.FC = () => {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-teal-900 text-white p-6 sm:p-8 shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                الموسم الدراسي: {schoolProfile.academicYear}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center gap-1">
+                <span>الموسم الدراسي:</span>
+                <span dir="ltr" className="font-mono tracking-tight">{schoolProfile.academicYear}</span>
               </span>
               <span className="text-xs text-slate-400">
                 {schoolProfile.schoolName || 'يرجى تهيئة هوية المؤسسة'}

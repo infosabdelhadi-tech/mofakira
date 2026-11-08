@@ -171,8 +171,9 @@ export const ReportsManager: React.FC = () => {
           <div className="text-sm font-black text-slate-900 pt-1">
             {schoolProfile.schoolName || 'مؤسسة تعليمية'}
           </div>
-          <div className="text-[11px] text-slate-500">
-            الموسم الدراسي: {schoolProfile.academicYear}
+          <div className="text-[11px] text-slate-500 flex items-center justify-center gap-1">
+            <span>الموسم الدراسي:</span>
+            <span dir="ltr" className="font-mono">{schoolProfile.academicYear}</span>
           </div>
         </div>
 
