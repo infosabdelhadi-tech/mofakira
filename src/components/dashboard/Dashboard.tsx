@@ -69,11 +69,11 @@ export const Dashboard: React.FC = () => {
                 الموسم الدراسي: {schoolProfile.academicYear}
               </span>
               <span className="text-xs text-slate-400">
-                {schoolProfile.schoolName}
+                {schoolProfile.schoolName || 'يرجى تهيئة هوية المؤسسة'}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold font-cairo tracking-tight">
-              {greeting}، {schoolProfile.principalName}
+              {greeting}، {schoolProfile.principalName ? `السيد(ة) المدير(ة) ${schoolProfile.principalName}` : 'السيد(ة) رئيس(ة) المؤسسة'}
             </h2>
             <p className="mt-1 text-sm text-slate-300 max-w-xl">
               مرحباً بك في مفكرة الإدارة التربوية. لديك اليوم <span className="text-teal-400 font-bold">{todayAppointments.length} مواعيد</span> و <span className="text-amber-400 font-bold">{pendingTasks} مهام إدارية وتربوية</span> بحاجة لمتابعتك.

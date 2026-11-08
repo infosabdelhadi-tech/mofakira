@@ -12,12 +12,14 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import type { SchoolProfile } from '../../types';
 import {
   exportAllDataAsJSON,
   validateBackupFile,
   restoreBackupData,
   type ValidationResult
 } from '../../utils/storage';
+import { getCurrentAcademicYear, getAvailableAcademicYears } from '../../utils/academicYear';
 
 export const SettingsManager: React.FC = () => {
   const {
@@ -28,7 +30,11 @@ export const SettingsManager: React.FC = () => {
     activityLogs
   } = useApp();
 
-  const [form, setForm] = useState(schoolProfile);
+  const availableYears = getAvailableAcademicYears();
+  const [form, setForm] = useState<SchoolProfile>({
+    ...schoolProfile,
+    academicYear: schoolProfile.academicYear || getCurrentAcademicYear()
+  });
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [validationModal, setValidationModal] = useState<ValidationResult | null>(null);
@@ -171,13 +177,25 @@ export const SettingsManager: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                 الموسم الدراسي الحالي
               </label>
-              <input
-                type="text"
-                value={form.academicYear}
-                onChange={e => setForm({ ...form, academicYear: e.target.value })}
-                placeholder="2024 - 2025"
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs"
-              />
+              <div className="flex gap-2">
+                <select
+                  value={form.academicYear}
+                  onChange={e => setForm({ ...form, academicYear: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100"
+                >
+                  {availableYears.map(yr => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={form.academicYear}
+                  onChange={e => setForm({ ...form, academicYear: e.target.value })}
+                  placeholder="موسم مخصص"
+                  title="أو أدخل صيغة موسم أخرى يدوياً"
+                  className="w-28 px-2 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-center"
+                />
+              </div>
             </div>
 
             <div>

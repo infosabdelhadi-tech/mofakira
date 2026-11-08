@@ -9,17 +9,35 @@ import type {
   AnnualProgramItem
 } from '../types';
 
-export const initialSchoolProfile: SchoolProfile = {
-  schoolName: 'مدرسة المسيرة الخضراء الابتدائية',
+import { getCurrentAcademicYear } from './academicYear';
+
+// Blank initial profile for real school administrators before onboarding
+export const emptySchoolProfile: SchoolProfile = {
+  schoolName: '',
+  directorate: '',
+  academy: '',
+  academicYear: getCurrentAcademicYear(),
+  principalName: '',
+  phone: '',
+  email: '',
+  address: '',
+  motto: ''
+};
+
+// Exploratory demo profile used only when the user explicitly requests demo data
+export const demoSchoolProfile: SchoolProfile = {
+  schoolName: 'مدرسة المسيرة الخضراء الابتدائية النموذجية',
   directorate: 'المديرية الإقليمية لوزارة التربية الوطنية والتعليم الأولي والرياضة - الرباط',
   academy: 'الأكاديمية الجهوية للتربية والتكوين لجهة الرباط سلا القنيطرة',
-  academicYear: '2024 - 2025',
+  academicYear: getCurrentAcademicYear(),
   principalName: 'ذ. عبد الرحيم المنصوري',
   phone: '0537000000',
   email: 'direction.almassira@men.gov.ma',
   address: 'حي النهضة، شارع محمد السادس، الرباط',
   motto: 'من أجل مدرسة عمومية ذات جودة للجميع'
 };
+
+export const initialSchoolProfile: SchoolProfile = emptySchoolProfile;
 
 const getTodayString = (offsetDays = 0): string => {
   const d = new Date();

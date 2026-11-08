@@ -103,7 +103,7 @@ export const getInitialLogs = (): ActivityLog[] => {
       timestamp: new Date().toISOString(),
       action: 'تهيئة وتحديث النظام والمفكرة الإدارية',
       entityType: 'profile',
-      entityTitle: 'مدرسة المسيرة الخضراء الابتدائية'
+      entityTitle: 'المؤسسة التعليمية'
     }
   ]);
 };
@@ -127,7 +127,7 @@ export interface BackupDataStructure {
 export const exportAllDataAsJSON = (): string => {
   const data: BackupDataStructure = {
     app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
-    appVersion: '2.1.0',
+    appVersion: '1.0.0',
     schemaVersion: 2,
     exportDate: new Date().toISOString(),
     schoolProfile: loadFromStorage(STORAGE_KEYS.PROFILE, initialSchoolProfile),

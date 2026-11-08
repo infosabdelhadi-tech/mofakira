@@ -77,7 +77,7 @@ export const Header: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px]">
-                  {schoolProfile.schoolName}
+                  {schoolProfile.schoolName || 'انقر لتهيئة بيانات المؤسسة'}
                 </p>
               </div>
             </div>

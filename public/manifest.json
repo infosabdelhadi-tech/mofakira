@@ -1,17 +1,23 @@
 {
-  "short_name": "مفكرة الإدارة",
-  "name": "مفكرة الإدارة التربوية - المغرب",
+  "short_name": "المفكرة التربوية",
+  "name": "مفكرة الإدارة التربوية - التعليم الابتدائي بالمغرب",
+  "description": "المنظومة الرقمية الذكية لمديرات ومديري التعليم الابتدائي بالمملكة المغربية",
   "icons": [
     {
       "src": "/mofakkira-icon.svg",
       "sizes": "192x192 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48",
+      "type": "image/svg+xml"
     }
   ],
   "start_url": "/",
   "background_color": "#0f172a",
-  "theme_color": "#1e293b",
+  "theme_color": "#0d9488",
   "display": "standalone",
   "orientation": "portrait",
   "dir": "rtl",

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { School, User, Award, Calendar, Check } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { getCurrentAcademicYear, getAvailableAcademicYears } from '../../utils/academicYear';
 import confetti from 'canvas-confetti';
 
 interface OnboardingModalProps {
@@ -10,12 +11,13 @@ interface OnboardingModalProps {
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComplete }) => {
   const { updateSchoolProfile, schoolProfile } = useApp();
+  const availableYears = getAvailableAcademicYears();
 
   const [formData, setFormData] = useState({
     schoolName: schoolProfile.schoolName || '',
     directorate: schoolProfile.directorate || '',
     academy: schoolProfile.academy || '',
-    academicYear: schoolProfile.academicYear || '2024 - 2025',
+    academicYear: schoolProfile.academicYear || getCurrentAcademicYear(),
     principalName: schoolProfile.principalName || '',
     phone: schoolProfile.phone || '',
     email: schoolProfile.email || '',
@@ -110,12 +112,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
                   </label>
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
-                    <input
-                      type="text"
+                    <select
                       value={formData.academicYear}
                       onChange={e => setFormData({ ...formData, academicYear: e.target.value })}
-                      className="w-full pl-2 pr-9 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold"
-                    />
+                      className="w-full pl-2 pr-9 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100"
+                    >
+                      {availableYears.map(yr => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

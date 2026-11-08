@@ -139,7 +139,7 @@ export const ReportsManager: React.FC = () => {
         </div>
 
         <div className="text-xs text-slate-400">
-          المؤسسة: <strong className="text-slate-800 dark:text-slate-200">{schoolProfile.schoolName}</strong>
+          المؤسسة: <strong className="text-slate-800 dark:text-slate-200">{schoolProfile.schoolName || 'المؤسسة التعليمية'}</strong>
         </div>
       </div>
 
@@ -169,7 +169,7 @@ export const ReportsManager: React.FC = () => {
             {schoolProfile.directorate}
           </div>
           <div className="text-sm font-black text-slate-900 pt-1">
-            {schoolProfile.schoolName}
+            {schoolProfile.schoolName || 'مؤسسة تعليمية'}
           </div>
           <div className="text-[11px] text-slate-500">
             الموسم الدراسي: {schoolProfile.academicYear}

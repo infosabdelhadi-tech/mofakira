@@ -27,6 +27,16 @@ import {
   STORAGE_KEYS,
   resetAllDataToDefault
 } from '../utils/storage';
+import {
+  demoSchoolProfile,
+  initialTasks,
+  initialAppointments,
+  initialOperations,
+  initialDailyNotes,
+  initialNotifications,
+  initialMeetings,
+  initialAnnualProgram
+} from '../utils/seedData';
 
 export type ActiveTab =
   | 'dashboard'
@@ -818,16 +828,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const loadDemoData = () => {
-    resetAllDataToDefault();
-    // Load fresh demo seeds
-    setSchoolProfile(getInitialProfile());
-    setTasks(getInitialTasks());
-    setAppointments(getInitialAppointments());
-    setOperations(getInitialOperations());
-    setMeetings(getInitialMeetings());
-    setAnnualProgram(getInitialAnnualProgram());
-    setDailyNotes(getInitialNotes());
-    setNotifications(getInitialNotifications());
+    // Explicit demo data loader
+    setSchoolProfile(demoSchoolProfile);
+    setTasks(initialTasks);
+    setAppointments(initialAppointments);
+    setOperations(initialOperations);
+    setMeetings(initialMeetings);
+    setAnnualProgram(initialAnnualProgram);
+    setDailyNotes(initialDailyNotes);
+    setNotifications(initialNotifications);
+
+    saveToStorage(STORAGE_KEYS.PROFILE, demoSchoolProfile);
+    saveToStorage(STORAGE_KEYS.TASKS, initialTasks);
+    saveToStorage(STORAGE_KEYS.APPOINTMENTS, initialAppointments);
+    saveToStorage(STORAGE_KEYS.OPERATIONS, initialOperations);
+    saveToStorage(STORAGE_KEYS.MEETINGS, initialMeetings);
+    saveToStorage(STORAGE_KEYS.ANNUAL_PROGRAM, initialAnnualProgram);
+    saveToStorage(STORAGE_KEYS.NOTES, initialDailyNotes);
+    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, initialNotifications);
+    localStorage.setItem('mofakkira_onboarding_completed', 'true');
+
     logActivity('تحميل البيانات التجريبية الاستكشافية', 'profile', 'مدرسة نموذجية');
     confetti({ particleCount: 70, spread: 60 });
   };

@@ -33,7 +33,7 @@ export const NotificationDrawer: React.FC = () => {
       if (permission === 'granted') {
         new Notification('مفكرة الإدارة التربوية', {
           body: 'تم تفعيل التنبيهات الإدارية بنجاح على هذا المتصفح!',
-          icon: '/vite.svg'
+          icon: '/mofakkira-icon.svg'
         });
       }
     }
