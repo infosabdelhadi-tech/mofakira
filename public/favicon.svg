@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#0f172a"/>
+  <rect x="24" y="24" width="464" height="464" rx="104" stroke="#0d9488" stroke-width="8" stroke-opacity="0.4"/>
+  <path d="M120 120H392V392H120z" fill="none"/>
+  <!-- Open Book / Educational Planner Icon -->
+  <path d="M140 180C140 160 180 148 256 168C332 148 372 160 372 180V352C372 368 332 358 256 376C180 358 140 368 140 352V180Z" fill="#14b8a6" fill-opacity="0.2" stroke="#14b8a6" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M256 168V376" stroke="#14b8a6" stroke-width="24" stroke-linecap="round"/>
+  <!-- Bookmark Ribbon -->
+  <path d="M200 160V260L220 240L240 260V165" fill="#f59e0b"/>
+  <!-- Checkmark -->
+  <circle cx="370" cy="140" r="48" fill="#0d9488"/>
+  <path d="M352 140L365 153L390 128" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

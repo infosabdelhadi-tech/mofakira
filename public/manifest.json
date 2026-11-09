@@ -1,0 +1,39 @@
+{
+  "short_name": "المفكرة التربوية",
+  "name": "مفكرة الإدارة التربوية - التعليم الابتدائي بالمغرب",
+  "description": "المنظومة الرقمية الذكية لمديرات ومديري التعليم الابتدائي بالمملكة المغربية",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./mofakkira-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./favicon.svg",
+      "sizes": "48x48",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "./",
+  "scope": "./",
+  "background_color": "#0f172a",
+  "theme_color": "#0d9488",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "categories": ["education", "productivity", "management"]
+}
