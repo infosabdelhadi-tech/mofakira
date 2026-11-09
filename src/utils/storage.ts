@@ -198,8 +198,19 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
         return { isValid: false, error: `حقل (${field}) في بطاقة المؤسسة مفقود أو ليس قيمة نصية صالحة.` };
       }
     }
+    if (profile.logoUrl !== undefined && typeof profile.logoUrl !== 'string') {
+      return { isValid: false, error: 'حقل شعار المؤسسة (logoUrl) يجب أن يكون نصاً صالحاً.' };
+    }
+    if (profile.motto !== undefined && typeof profile.motto !== 'string') {
+      return { isValid: false, error: 'حقل الشعار التربوي (motto) يجب أن يكون نصاً صالحاً.' };
+    }
 
     // 6. Mandatory Entity Arrays Validation (All 8 entity arrays must be present and valid arrays)
+    const validTaskCategories = [
+      'الإدارة والتدبير', 'الشؤون التربوية', 'الحياة المدرسية', 'الموارد البشرية',
+      'الشؤون المالية والمادية', 'التواصل والشراكات', 'الاجتماعات والمجالس',
+      'البنية التحتية والصيانة', 'الأنشطة والمناسبات', 'المهام الشخصية'
+    ];
     const validTaskStatuses = ['جديدة', 'مبرمجة', 'قيد التنفيذ', 'متوقفة', 'مكتملة', 'ملغاة'];
     const validTaskPriorities = ['عاجلة جداً', 'مهمة', 'متوسطة', 'منخفضة'];
     const validAppointmentTypes = ['اجتماع', 'زيارة تربوية', 'لقاء إداري', 'اجتماع مجلس', 'لقاء مع أولياء الأمور', 'نشاط مدرسي', 'موعد شخصي', 'موعد رسمي'];
@@ -212,7 +223,7 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
     const validNotifPriorities = ['high', 'medium', 'low'];
     const validEntityTypes = ['task', 'appointment', 'operation', 'meeting', 'annual', 'note', 'profile'];
 
-    // Tasks validation
+    // Tasks validation with nested checklist, attachments, and history checks
     if (!Array.isArray(parsed.tasks)) {
       return { isValid: false, error: 'حقل المهام (tasks) إلزامي ويجب أن يكون مصفوفة.' };
     }
@@ -221,8 +232,11 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) {
         return { isValid: false, error: `المهمة رقم ${i + 1} غير صالحة.` };
       }
-      if (typeof t.id !== 'string' || typeof t.title !== 'string' || !t.title.trim() || typeof t.dueDate !== 'string') {
-        return { isValid: false, error: `المهمة رقم ${i + 1} تنقصها حقول أساسية (id, title, dueDate).` };
+      if (typeof t.id !== 'string' || typeof t.title !== 'string' || !t.title.trim() || typeof t.description !== 'string' || typeof t.dueDate !== 'string') {
+        return { isValid: false, error: `المهمة رقم ${i + 1} تنقصها حقول أساسية (id, title, description, dueDate).` };
+      }
+      if (!validTaskCategories.includes(t.category)) {
+        return { isValid: false, error: `المهمة "${t.title}" تحمل مجالاً أو تصنيفاً غير صالح (${t.category}).` };
       }
       if (!validTaskStatuses.includes(t.status)) {
         return { isValid: false, error: `المهمة "${t.title}" تحمل حالة تنفيذ غير صالحة (${t.status}).` };
@@ -233,11 +247,41 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       if (typeof t.completionPercentage !== 'number' || t.completionPercentage < 0 || t.completionPercentage > 100) {
         return { isValid: false, error: `المهمة "${t.title}" تحمل نسبة إنجاز غير صالحة.` };
       }
-      if (t.checklist && !Array.isArray(t.checklist)) {
-        return { isValid: false, error: `قائمة المتابعة checklist للمهمة "${t.title}" يجب أن تكون مصفوفة.` };
+      // Nested Checklist check
+      if (t.checklist !== undefined) {
+        if (!Array.isArray(t.checklist)) {
+          return { isValid: false, error: `قائمة المتابعة checklist للمهمة "${t.title}" يجب أن تكون مصفوفة.` };
+        }
+        for (let cIdx = 0; cIdx < t.checklist.length; cIdx++) {
+          const c = t.checklist[cIdx];
+          if (!c || typeof c !== 'object' || typeof c.id !== 'string' || typeof c.text !== 'string' || typeof c.completed !== 'boolean') {
+            return { isValid: false, error: `عنصر المتابعة رقم ${cIdx + 1} في المهمة "${t.title}" غير صالح.` };
+          }
+        }
       }
-      if (t.attachments && !Array.isArray(t.attachments)) {
-        return { isValid: false, error: `مرفقات المهمة "${t.title}" يجب أن تكون مصفوفة.` };
+      // Nested Attachments check
+      if (t.attachments !== undefined) {
+        if (!Array.isArray(t.attachments)) {
+          return { isValid: false, error: `مرفقات المهمة "${t.title}" يجب أن تكون مصفوفة.` };
+        }
+        for (let aIdx = 0; aIdx < t.attachments.length; aIdx++) {
+          const att = t.attachments[aIdx];
+          if (!att || typeof att !== 'object' || typeof att.id !== 'string' || typeof att.name !== 'string' || typeof att.size !== 'string' || typeof att.type !== 'string') {
+            return { isValid: false, error: `المرفق رقم ${aIdx + 1} في المهمة "${t.title}" غير صالح.` };
+          }
+        }
+      }
+      // Nested History check
+      if (t.history !== undefined) {
+        if (!Array.isArray(t.history)) {
+          return { isValid: false, error: `سجل تاريخ المهمة "${t.title}" يجب أن يكون مصفوفة.` };
+        }
+        for (let hIdx = 0; hIdx < t.history.length; hIdx++) {
+          const h = t.history[hIdx];
+          if (!h || typeof h !== 'object' || typeof h.id !== 'string' || typeof h.timestamp !== 'string' || typeof h.action !== 'string' || typeof h.user !== 'string') {
+            return { isValid: false, error: `سجل التاريخ رقم ${hIdx + 1} في المهمة "${t.title}" غير صالح.` };
+          }
+        }
       }
     }
 

@@ -254,12 +254,30 @@ describe('6. فحص إلزامية وصحة notifications و activityLogs', () =
   assert.equal(resBadLog.isValid, false, 'Invalid activityLog entityType must be rejected');
 });
 
-describe('7. فحص سلامة الحقول المتداخلة (Checklist, Phases, Decisions)', () => {
+describe('7. فحص سلامة الحقول المتداخلة (Checklist, Phases, Decisions, Attachments, Profile Options)', () => {
   // Invalid task status union
   const badTaskStatus = createFullValidBackupObject();
   badTaskStatus.tasks[0].status = 'INVALID_STATUS' as any;
   const resStatus = validateBackupFile(JSON.stringify(badTaskStatus));
   assert.equal(resStatus.isValid, false, 'Invalid task status must be rejected');
+
+  // Corrupted checklist item (boolean completed missing or non-boolean)
+  const badChecklist = createFullValidBackupObject();
+  badChecklist.tasks[0].checklist = [{ id: 'c1', text: 'بند', completed: 'NOT_A_BOOLEAN' as any }];
+  const resChecklist = validateBackupFile(JSON.stringify(badChecklist));
+  assert.equal(resChecklist.isValid, false, 'Corrupted checklist item must be rejected');
+
+  // Corrupted attachment item
+  const badAtt = createFullValidBackupObject();
+  badAtt.tasks[0].attachments = [{ id: 'att-1', name: 'ملف' } as any];
+  const resAtt = validateBackupFile(JSON.stringify(badAtt));
+  assert.equal(resAtt.isValid, false, 'Corrupted attachment item must be rejected');
+
+  // Corrupted optional schoolProfile logoUrl (must be string if present)
+  const badLogo = createFullValidBackupObject();
+  (badLogo.schoolProfile as any).logoUrl = 12345;
+  const resLogo = validateBackupFile(JSON.stringify(badLogo));
+  assert.equal(resLogo.isValid, false, 'Non-string logoUrl must be rejected');
 
   // Invalid operation phase
   const badPhase = createFullValidBackupObject();
