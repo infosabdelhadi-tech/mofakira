@@ -26,11 +26,24 @@ const STORAGE_KEYS = {
   THEME: 'mofakkira_theme'
 };
 
-export const loadFromStorage = <T>(key: string, fallback: T): T => {
+/**
+ * Robust loader with null checks and validator function to prevent corrupt/null state crashes
+ */
+export const loadFromStorage = <T>(
+  key: string,
+  fallback: T,
+  validator?: (data: unknown) => data is T
+): T => {
   try {
     const item = localStorage.getItem(key);
     if (!item) return fallback;
-    return JSON.parse(item);
+    const parsed = JSON.parse(item);
+    if (parsed === null || parsed === undefined) return fallback;
+    if (validator && !validator(parsed)) {
+      console.warn(`Validation failed for storage key: ${key}. Returning fallback to prevent UI crash.`);
+      return fallback;
+    }
+    return parsed as T;
   } catch (err) {
     console.error(`Error loading key ${key} from localStorage:`, err);
     return fallback;
@@ -54,43 +67,48 @@ export const saveToStorage = <T>(key: string, data: T): boolean => {
   }
 };
 
+const isArrayValidator = <T>(val: unknown): val is T[] => Array.isArray(val);
+
+const isProfileValidator = (val: unknown): val is SchoolProfile => {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) return false;
+  const p = val as Record<string, unknown>;
+  return typeof p.schoolName === 'string' && typeof p.directorate === 'string' && typeof p.principalName === 'string';
+};
+
 export const getInitialProfile = (): SchoolProfile => {
-  // Always start with empty school profile (no fake demo names) for a new user
-  return loadFromStorage<SchoolProfile>(STORAGE_KEYS.PROFILE, initialSchoolProfile);
+  return loadFromStorage<SchoolProfile>(STORAGE_KEYS.PROFILE, initialSchoolProfile, isProfileValidator);
 };
 
 export const getInitialTasks = (): Task[] => {
-  // Start with clean empty array for new administrators, keeping existing user data if present
-  return loadFromStorage<Task[]>(STORAGE_KEYS.TASKS, []);
+  return loadFromStorage<Task[]>(STORAGE_KEYS.TASKS, [], isArrayValidator);
 };
 
 export const getInitialAppointments = (): Appointment[] => {
-  return loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, []);
+  return loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, [], isArrayValidator);
 };
 
 export const getInitialOperations = (): Operation[] => {
-  return loadFromStorage<Operation[]>(STORAGE_KEYS.OPERATIONS, []);
+  return loadFromStorage<Operation[]>(STORAGE_KEYS.OPERATIONS, [], isArrayValidator);
 };
 
 export const getInitialNotes = (): DailyNote[] => {
-  return loadFromStorage<DailyNote[]>(STORAGE_KEYS.NOTES, []);
+  return loadFromStorage<DailyNote[]>(STORAGE_KEYS.NOTES, [], isArrayValidator);
 };
 
 export const getInitialMeetings = (): Meeting[] => {
-  return loadFromStorage<Meeting[]>(STORAGE_KEYS.MEETINGS, []);
+  return loadFromStorage<Meeting[]>(STORAGE_KEYS.MEETINGS, [], isArrayValidator);
 };
 
 export const getInitialAnnualProgram = (): AnnualProgramItem[] => {
-  return loadFromStorage<AnnualProgramItem[]>(STORAGE_KEYS.ANNUAL_PROGRAM, []);
+  return loadFromStorage<AnnualProgramItem[]>(STORAGE_KEYS.ANNUAL_PROGRAM, [], isArrayValidator);
 };
 
 export const getInitialNotifications = (): AppNotification[] => {
-  return loadFromStorage<AppNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
+  return loadFromStorage<AppNotification[]>(STORAGE_KEYS.NOTIFICATIONS, [], isArrayValidator);
 };
 
 export const getInitialLogs = (): ActivityLog[] => {
-  // Clean empty array for activity logs for new installations
-  return loadFromStorage<ActivityLog[]>(STORAGE_KEYS.LOGS, []);
+  return loadFromStorage<ActivityLog[]>(STORAGE_KEYS.LOGS, [], isArrayValidator);
 };
 
 export const BACKUP_SCHEMA_VERSION = 2;
@@ -117,15 +135,15 @@ export const exportAllDataAsJSON = (): string => {
     appVersion: '1.0.0',
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportDate: new Date().toISOString(),
-    schoolProfile: loadFromStorage(STORAGE_KEYS.PROFILE, initialSchoolProfile),
-    tasks: loadFromStorage(STORAGE_KEYS.TASKS, []),
-    appointments: loadFromStorage(STORAGE_KEYS.APPOINTMENTS, []),
-    operations: loadFromStorage(STORAGE_KEYS.OPERATIONS, []),
-    dailyNotes: loadFromStorage(STORAGE_KEYS.NOTES, []),
-    meetings: loadFromStorage(STORAGE_KEYS.MEETINGS, []),
-    annualProgram: loadFromStorage(STORAGE_KEYS.ANNUAL_PROGRAM, []),
-    notifications: loadFromStorage(STORAGE_KEYS.NOTIFICATIONS, []),
-    activityLogs: loadFromStorage(STORAGE_KEYS.LOGS, [])
+    schoolProfile: getInitialProfile(),
+    tasks: getInitialTasks(),
+    appointments: getInitialAppointments(),
+    operations: getInitialOperations(),
+    dailyNotes: getInitialNotes(),
+    meetings: getInitialMeetings(),
+    annualProgram: getInitialAnnualProgram(),
+    notifications: getInitialNotifications(),
+    activityLogs: getInitialLogs()
   };
   return JSON.stringify(data, null, 2);
 };
@@ -274,7 +292,7 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       // Nested History check
       if (t.history !== undefined) {
         if (!Array.isArray(t.history)) {
-          return { isValid: false, error: `سجل تاريخ المهمة "${t.title}" يجب أن يكون مصفوفة.` };
+          return { isValid: false, error: `سجل تاريخ المهمة "${t.title}" يجب أن تكون مصفوفة.` };
         }
         for (let hIdx = 0; hIdx < t.history.length; hIdx++) {
           const h = t.history[hIdx];
@@ -537,7 +555,7 @@ export const restoreBackupData = (data: BackupDataStructure): RestoreResult => {
 
 export const resetAllDataToDefault = (): void => {
   // Retain existing configured school profile identity if available, but clean operational records
-  const currentProfile = loadFromStorage<SchoolProfile>(STORAGE_KEYS.PROFILE, initialSchoolProfile);
+  const currentProfile = getInitialProfile();
   localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(currentProfile));
   localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify([]));

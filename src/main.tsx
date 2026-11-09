@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AppProvider } from './context/AppContext.tsx'
+import { ErrorBoundary } from './components/common/ErrorBoundary.tsx'
 
 // Register Service Worker for PWA with dynamic BASE_URL for subpath / GitHub Pages compatibility
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -26,10 +27,15 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AppProvider>
-      <App />
-    </AppProvider>
-  </StrictMode>,
-)
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <AppProvider>
+          <App />
+        </AppProvider>
+      </ErrorBoundary>
+    </StrictMode>,
+  );
+}

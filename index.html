@@ -28,9 +28,56 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+
+    <style>
+      /* Fallback style for inline splash loader before React hydration */
+      #mofakira-splash {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8fafc;
+        color: #1e293b;
+        font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      @media (prefers-color-scheme: dark) {
+        #mofakira-splash {
+          background-color: #0f172a;
+          color: #f1f5f9;
+        }
+      }
+      .mofakira-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #cbd5e1;
+        border-top-color: #0d9488;
+        border-radius: 50%;
+        animation: mofakira-spin 0.9s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes mofakira-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 antialiased font-cairo selection:bg-teal-500 selection:text-white">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Native Splash Screen ensuring no blank white screen while assets initialize -->
+      <div id="mofakira-splash">
+        <div class="mofakira-spinner"></div>
+        <div style="font-weight: 700; font-size: 1.25rem; margin-bottom: 6px;">مفكرة الإدارة التربوية</div>
+        <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 16px;">جاري تشغيل المنظومة واسترجاع البيانات...</div>
+        <noscript>
+          <div style="background-color: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; font-size: 0.875rem; max-width: 400px;">
+            يتطلب التطبيق تفعيل لغة JavaScript في المتصفح للعمل.
+          </div>
+        </noscript>
+      </div>
+    </div>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
