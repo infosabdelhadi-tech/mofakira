@@ -286,6 +286,7 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
     }
 
     // Appointments validation
+    const validReminders = ['none', 'exact', '15m', '30m', '1h', '1d'];
     if (!Array.isArray(parsed.appointments)) {
       return { isValid: false, error: 'حقل المواعيد (appointments) إلزامي ويجب أن يكون مصفوفة.' };
     }
@@ -294,11 +295,17 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       if (!a || typeof a !== 'object' || Array.isArray(a)) {
         return { isValid: false, error: `الموعد رقم ${i + 1} غير صالح.` };
       }
-      if (typeof a.id !== 'string' || typeof a.title !== 'string' || typeof a.date !== 'string' || typeof a.startTime !== 'string') {
-        return { isValid: false, error: `الموعد رقم ${i + 1} تنقصه حقول أساسية (id, title, date, startTime).` };
+      if (typeof a.id !== 'string' || typeof a.title !== 'string' || typeof a.date !== 'string' || typeof a.startTime !== 'string' || typeof a.endTime !== 'string' || typeof a.location !== 'string' || typeof a.attendees !== 'string' || typeof a.description !== 'string') {
+        return { isValid: false, error: `الموعد رقم ${i + 1} تنقصه حقول أساسية (id, title, date, startTime, endTime, location, attendees, description).` };
       }
       if (!validAppointmentTypes.includes(a.type)) {
         return { isValid: false, error: `الموعد "${a.title}" يحمل نوع موعد غير صالح (${a.type}).` };
+      }
+      if (a.reminder !== undefined && !validReminders.includes(a.reminder)) {
+        return { isValid: false, error: `الموعد "${a.title}" يحمل نوع تذكير غير صالح (${a.reminder}).` };
+      }
+      if (a.isCompleted !== undefined && typeof a.isCompleted !== 'boolean') {
+        return { isValid: false, error: `حالة إتمام الموعد "${a.title}" يجب أن تكون قيمة منطقية boolean.` };
       }
     }
 
@@ -311,19 +318,25 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       if (!op || typeof op !== 'object' || Array.isArray(op)) {
         return { isValid: false, error: `العملية رقم ${i + 1} غير صالحة.` };
       }
-      if (typeof op.id !== 'string' || typeof op.title !== 'string' || !op.title.trim()) {
-        return { isValid: false, error: `العملية رقم ${i + 1} تنقصها حقول أساسية (id, title).` };
+      if (typeof op.id !== 'string' || typeof op.title !== 'string' || !op.title.trim() || typeof op.objective !== 'string' || typeof op.reference !== 'string' || typeof op.startDate !== 'string' || typeof op.dueDate !== 'string' || typeof op.responsible !== 'string' || typeof op.participants !== 'string' || typeof op.resources !== 'string' || typeof op.indicators !== 'string') {
+        return { isValid: false, error: `العملية رقم ${i + 1} تنقصها حقول تفصيلية أساسية.` };
+      }
+      if (!validTaskCategories.includes(op.category)) {
+        return { isValid: false, error: `العملية "${op.title}" تحمل تصنيفاً غير صالح (${op.category}).` };
       }
       if (!validOperationStatuses.includes(op.status)) {
         return { isValid: false, error: `العملية "${op.title}" تحمل حالة غير صالحة (${op.status}).` };
+      }
+      if (typeof op.progress !== 'number' || op.progress < 0 || op.progress > 100) {
+        return { isValid: false, error: `نسبة تقدم العملية "${op.title}" غير صالحة.` };
       }
       if (!Array.isArray(op.phases)) {
         return { isValid: false, error: `مراحل العملية "${op.title}" (phases) يجب أن تكون مصفوفة.` };
       }
       for (let pIdx = 0; pIdx < op.phases.length; pIdx++) {
         const ph = op.phases[pIdx];
-        if (!ph || typeof ph !== 'object' || typeof ph.id !== 'string' || typeof ph.title !== 'string' || !validPhaseStatuses.includes(ph.status)) {
-          return { isValid: false, error: `المرحلة رقم ${pIdx + 1} في العملية "${op.title}" غير صالحة.` };
+        if (!ph || typeof ph !== 'object' || typeof ph.id !== 'string' || typeof ph.order !== 'number' || typeof ph.title !== 'string' || typeof ph.startDate !== 'string' || typeof ph.dueDate !== 'string' || typeof ph.responsible !== 'string' || !validPhaseStatuses.includes(ph.status)) {
+          return { isValid: false, error: `المرحلة رقم ${pIdx + 1} في العملية "${op.title}" غير صالحة أو تنقصها حقول.` };
         }
       }
     }
@@ -363,8 +376,17 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       if (!an || typeof an !== 'object' || Array.isArray(an)) {
         return { isValid: false, error: `نشاط البرنامج السنوي رقم ${i + 1} غير صالح.` };
       }
-      if (typeof an.id !== 'string' || typeof an.title !== 'string' || typeof an.month !== 'string' || typeof an.academicYear !== 'string') {
+      if (typeof an.id !== 'string' || typeof an.title !== 'string' || typeof an.month !== 'string' || typeof an.academicYear !== 'string' || typeof an.objective !== 'string' || typeof an.targetDate !== 'string' || typeof an.responsible !== 'string' || typeof an.indicators !== 'string') {
         return { isValid: false, error: `نشاط البرنامج السنوي رقم ${i + 1} تنقصه حقول أساسية.` };
+      }
+      if (!validTaskCategories.includes(an.category)) {
+        return { isValid: false, error: `نشاط البرنامج السنوي رقم ${i + 1} يحمل مجال غير صالح (${an.category}).` };
+      }
+      if (!validOperationStatuses.includes(an.status)) {
+        return { isValid: false, error: `نشاط البرنامج السنوي رقم ${i + 1} يحمل حالة غير صالحة (${an.status}).` };
+      }
+      if (typeof an.completionPercentage !== 'number' || an.completionPercentage < 0 || an.completionPercentage > 100) {
+        return { isValid: false, error: `نسبة إنجاز النشاط السنوي رقم ${i + 1} غير صالحة.` };
       }
     }
 

@@ -1,130 +1,151 @@
-import { assert, describe } from './testHelper';
-import type { Meeting, MeetingDecision, Task } from '../../types';
-import { buildDecisionTaskPayload } from '../decisionConversion';
-import { STORAGE_KEYS } from '../storage';
+import { JSDOM } from 'jsdom';
 
-// Setup Mock Environment
-const store: Record<string, string> = {};
+// Initialize DOM environment for React 19 execution
+const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
+  url: 'http://localhost/'
+});
+
+(globalThis as any).window = dom.window;
+(globalThis as any).document = dom.window.document;
+Object.defineProperty(globalThis, 'navigator', {
+  value: dom.window.navigator,
+  writable: true,
+  configurable: true
+});
+(globalThis as any).addEventListener = dom.window.addEventListener.bind(dom.window);
+(globalThis as any).removeEventListener = dom.window.removeEventListener.bind(dom.window);
+(globalThis as any).alert = (_msg: string) => {}; // silence alert in test
+(globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(cb, 0);
+(globalThis as any).cancelAnimationFrame = (id: number) => clearTimeout(id);
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+// Mock HTMLCanvasElement.getContext to support canvas-confetti cleanly in JSDOM
+const noop = () => {};
+dom.window.HTMLCanvasElement.prototype.getContext = () => new Proxy({}, {
+  get: () => noop
+}) as any;
+
+// Mock localStorage backed by Map
+const storageMap = new Map<string, string>();
 (globalThis as any).localStorage = {
-  getItem: (k: string) => store[k] || null,
-  setItem: (k: string, v: string) => { store[k] = String(v); },
-  removeItem: (k: string) => { delete store[k]; },
-  clear: () => { Object.keys(store).forEach(k => delete store[k]); }
+  getItem: (key: string) => storageMap.get(key) || null,
+  setItem: (key: string, val: string) => storageMap.set(key, String(val)),
+  removeItem: (key: string) => storageMap.delete(key),
+  clear: () => storageMap.clear(),
+  get length() { return storageMap.size; },
+  key: (i: number) => Array.from(storageMap.keys())[i] || null
 };
 
-describe('1. اختبار تكاملي للتدفق الحقيقي لتحويل القرارات مع التخزين المحلي والربط المزدوج', () => {
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { assert, describe } from './testHelper';
+import { AppProvider, useApp } from '../../context/AppContext';
+import { STORAGE_KEYS } from '../storage';
+import type { Meeting, MeetingDecision } from '../../types';
+
+describe('1. Mount and exercise real AppProvider with live component and real Context operations', async () => {
   localStorage.clear();
 
-  const decision: MeetingDecision = {
-    id: 'dec-live-1',
-    decisionText: 'تجهيز قاعة المعلوميات وتزويدها بالصبيب',
-    responsible: 'السيد المدير + المساعد التقني',
+  // Test Consumer Component that captures real context methods and values
+  let contextValue: any = null;
+
+  const TestConsumer: React.FC = () => {
+    const app = useApp();
+    contextValue = app;
+    return React.createElement('div', { id: 'test-node' }, 'Tasks count: ' + app.tasks.length);
+  };
+
+  const container = document.getElementById('root')!;
+  const root = createRoot(container);
+
+  // Mount real AppProvider
+  await act(async () => {
+    root.render(
+      React.createElement(AppProvider, null, React.createElement(TestConsumer))
+    );
+  });
+
+  assert.ok(contextValue, 'AppContext value must be captured from real AppProvider');
+  assert.equal(contextValue!.tasks.length, 0, 'Clean initial run must have 0 tasks');
+  assert.equal(contextValue!.meetings.length, 0, 'Clean initial run must have 0 meetings');
+
+  // Step 2: Add a real Meeting via context
+  const targetDecision: MeetingDecision = {
+    id: 'dec-real-101',
+    decisionText: 'برمجة حصص الدعم التربوي المركز لمستويات التعليم الابتدائي',
+    responsible: 'السيد المدير + الفريق التربوي',
     deadline: '2026-09-25',
     status: 'قيد الانتظار'
   };
 
-  const initialMeeting: Meeting = {
-    id: 'meet-live-1',
-    title: 'اجتماع الدخول المدرسي لمجلس التدبير',
-    type: 'مجلس التدبير',
+  const meetingPayload: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'> = {
+    title: 'اجتماع المجلس التربوي الافتتاحي',
+    type: 'المجلس التربوي',
     date: '2026-09-15',
-    time: '15:00 - 17:00',
-    location: 'قاعة الاجتماعات',
-    attendees: 'أعضاء المجلس',
-    agenda: ['الدخول المدرسي'],
-    discussionPoints: 'مناقشة الوسائل التعليمية',
-    decisions: [decision],
+    time: '16:00 - 18:00',
+    location: 'مكتب الإدارة',
+    attendees: 'أعضاء المجلس التربوي',
+    agenda: ['تقويم المستلزمات وتوزيع الدعم'],
+    discussionPoints: 'مناقشة نتائج التقويم التشخيصي',
+    decisions: [targetDecision],
     minutes: 'محضر رسمي رقم 1',
-    academicYear: '2026 - 2027',
-    createdAt: '2026-09-15',
-    updatedAt: '2026-09-15'
+    academicYear: '2026 - 2027'
   };
 
-  // State arrays replicating AppContext state
-  let meetings: Meeting[] = [initialMeeting];
-  let tasks: Task[] = [];
-  const principalName = 'ذ. هشام التازي';
+  await act(async () => {
+    contextValue!.addMeeting(meetingPayload);
+  });
 
-  // AppContext convertDecisionToTask method logic directly under test
-  const convertDecisionToTask = (meetingId: string, dec: MeetingDecision) => {
-    const meeting = meetings.find(m => m.id === meetingId);
-    if (!meeting) return { success: false, error: 'Meeting not found' };
+  // Verify Meeting in state and localStorage
+  assert.equal(contextValue!.meetings.length, 1);
+  const createdMeeting = contextValue!.meetings[0];
+  assert.equal(createdMeeting.title, meetingPayload.title);
+  assert.equal(createdMeeting.decisions.length, 1);
 
-    const currentDecision = meeting.decisions.find(d => d.id === dec.id);
-    if (currentDecision?.convertedTaskId) {
-      return { success: false, error: 'تم تحويل هذا القرار مسبقاً إلى مهمة عمل في جدول المهام.' };
-    }
-
-    const result = buildDecisionTaskPayload(meeting, dec, principalName);
-    if (!result.success || !result.taskPayload) {
-      return { success: false, error: result.error };
-    }
-
-    // addTask execution
-    const now = new Date().toISOString();
-    const taskId = 'task-' + Date.now();
-    const newTask: Task = {
-      ...result.taskPayload,
-      id: taskId,
-      createdAt: now.split('T')[0],
-      updatedAt: now,
-      history: [
-        { id: 'h-' + Date.now(), timestamp: now, action: 'إنشاء المهمة', user: principalName }
-      ]
-    };
-
-    tasks = [newTask, ...tasks];
-    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
-
-    // Update meeting decisions
-    meetings = meetings.map(m => {
-      if (m.id === meetingId) {
-        return {
-          ...m,
-          decisions: m.decisions.map(d => d.id === dec.id ? { ...d, convertedTaskId: taskId, status: 'قيد التنفيذ' } : d)
-        };
-      }
-      return m;
-    });
-    localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(meetings));
-
-    return { success: true, taskId };
-  };
-
-  // First conversion attempt
-  const firstRes = convertDecisionToTask('meet-live-1', decision);
-  assert.equal(firstRes.success, true);
-  assert.ok(firstRes.taskId);
-
-  // Assert in-memory state
-  assert.equal(tasks.length, 1);
-  const createdTask = tasks[0];
-  assert.equal(createdTask.id, firstRes.taskId);
-  assert.equal(createdTask.title, decision.decisionText);
-  assert.equal(createdTask.category, 'الاجتماعات والمجالس');
-  assert.equal(createdTask.status, 'قيد التنفيذ');
-  assert.equal(createdTask.meetingId, 'meet-live-1');
-  assert.equal(createdTask.decisionId, 'dec-live-1');
-  assert.equal(createdTask.assignedTo, decision.responsible);
-
-  const updatedDecision = meetings[0].decisions[0];
-  assert.equal(updatedDecision.status, 'قيد التنفيذ');
-  assert.equal(updatedDecision.convertedTaskId, firstRes.taskId);
-
-  // Assert local storage persistence
-  const storedTasks: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
   const storedMeetings: Meeting[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEETINGS) || '[]');
+  assert.equal(storedMeetings.length, 1);
+  assert.equal(storedMeetings[0].title, meetingPayload.title);
+
+  // Step 3: Convert Decision to Task via real context convertDecisionToTask
+  await act(async () => {
+    contextValue!.convertDecisionToTask(createdMeeting.id, createdMeeting.decisions[0]);
+  });
+
+  // Verify real Task creation and bidirectional linking
+  assert.equal(contextValue!.tasks.length, 1, 'One task should be created from the decision');
+  const createdTask = contextValue!.tasks[0];
+  assert.equal(createdTask.title, targetDecision.decisionText);
+  assert.equal(createdTask.meetingId, createdMeeting.id, 'Task must link back to meetingId');
+  assert.equal(createdTask.decisionId, targetDecision.id, 'Task must link back to decisionId');
+  assert.equal(createdTask.status, 'قيد التنفيذ', 'Created task should start in progress');
+
+  // Verify Meeting decision status and convertedTaskId updated
+  const updatedMeeting = contextValue!.meetings[0];
+  assert.equal(updatedMeeting.decisions[0].status, 'قيد التنفيذ', 'Decision status must transition to قيد التنفيذ');
+  assert.equal(updatedMeeting.decisions[0].convertedTaskId, createdTask.id, 'Decision must store convertedTaskId');
+
+  // Verify real localStorage persistence
+  const storedTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
   assert.equal(storedTasks.length, 1);
-  assert.equal(storedTasks[0].id, firstRes.taskId);
-  assert.equal(storedMeetings[0].decisions[0].convertedTaskId, firstRes.taskId);
+  assert.equal(storedTasks[0].id, createdTask.id);
+  assert.equal(storedTasks[0].decisionId, targetDecision.id);
 
-  // Second conversion attempt (duplicate click / concurrent action)
-  const duplicateRes = convertDecisionToTask('meet-live-1', decision);
-  assert.equal(duplicateRes.success, false);
-  assert.match(duplicateRes.error || '', /تم تحويل هذا القرار مسبقاً/);
+  const storedMeetingsAfter = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEETINGS) || '[]');
+  assert.equal(storedMeetingsAfter[0].decisions[0].convertedTaskId, createdTask.id);
+  assert.equal(storedMeetingsAfter[0].decisions[0].status, 'قيد التنفيذ');
 
-  // Assert no extra tasks were created
-  assert.equal(tasks.length, 1);
-  const storedTasksAfterDuplicate: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
+  // Step 4: Duplicate click protection test on real AppContext
+  await act(async () => {
+    contextValue!.convertDecisionToTask(createdMeeting.id, updatedMeeting.decisions[0]);
+  });
+
+  // Verify no duplicate tasks created in state or localStorage
+  assert.equal(contextValue!.tasks.length, 1, 'Duplicate conversion must not create a second task');
+  const storedTasksAfterDuplicate = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
   assert.equal(storedTasksAfterDuplicate.length, 1);
+
+  // Clean unmount
+  await act(async () => {
+    root.unmount();
+  });
 });
