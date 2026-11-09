@@ -44,7 +44,7 @@ const fetchUrl = (fullPath: string): Promise<{ status: number; contentType?: str
   });
 
   try {
-    describe('1. استجابة خادم الإنتاج الحقيقي (Vite Preview) للمسار /mofakira/ وملف index.html والأصول الأساسية', async () => {
+    await describe('1. استجابة خادم الإنتاج الحقيقي (Vite Preview) للمسار /mofakira/ وملف index.html والأصول الأساسية', async () => {
       const rootRes = await fetchUrl(BASE);
       assert.equal(rootRes.status, 200);
       assert.ok(rootRes.contentType?.includes('text/html'));
@@ -52,14 +52,14 @@ const fetchUrl = (fullPath: string): Promise<{ status: number; contentType?: str
       assert.ok(rootRes.body.includes('./assets/index-'));
     });
 
-    describe('2. استرجاع الأيقونة الرسمية والأصول تحت المسار الفرعي /mofakira/mofakkira-icon.svg عبر Vite Preview', async () => {
+    await describe('2. استرجاع الأيقونة الرسمية والأصول تحت المسار الفرعي /mofakira/mofakkira-icon.svg عبر Vite Preview', async () => {
       const iconRes = await fetchUrl(`${BASE}mofakkira-icon.svg`);
       assert.equal(iconRes.status, 200);
       assert.ok(iconRes.contentType?.includes('image/svg+xml'));
       assert.ok(iconRes.body.includes('<svg'));
     });
 
-    describe('3. استرجاع ملف PWA manifest والتحقق من start_url و scope عبر Vite Preview', async () => {
+    await describe('3. استرجاع ملف PWA manifest والتحقق من start_url و scope عبر Vite Preview', async () => {
       const manifestRes = await fetchUrl(`${BASE}manifest.json`);
       assert.equal(manifestRes.status, 200);
       assert.ok(manifestRes.contentType?.includes('application/json'));
@@ -69,7 +69,7 @@ const fetchUrl = (fullPath: string): Promise<{ status: number; contentType?: str
       assert.ok(manifestJson.icons.length >= 2);
     });
 
-    describe('4. فحص استجابة Service Worker وعمل آليات الكاش والعمل دون اتصال (sw.js) عبر Vite Preview', async () => {
+    await describe('4. فحص استجابة Service Worker وعمل آليات الكاش والعمل دون اتصال (sw.js) عبر Vite Preview', async () => {
       const swRes = await fetchUrl(`${BASE}sw.js`);
       assert.equal(swRes.status, 200);
       assert.ok(swRes.body.includes('self.registration.scope'));
@@ -77,7 +77,7 @@ const fetchUrl = (fullPath: string): Promise<{ status: number; contentType?: str
       assert.ok(swRes.body.includes('caches.match'));
     });
 
-    describe('5. فحص إعادة التحميل المباشر للمسارات الداخلية (Direct SPA Refresh & Deep Link) دون 404 في Vite Preview', async () => {
+    await describe('5. فحص إعادة التحميل المباشر للمسارات الداخلية (Direct SPA Refresh & Deep Link) دون 404 في Vite Preview', async () => {
       const tasksRouteRes = await fetchUrl(`${BASE}tasks`);
       assert.equal(tasksRouteRes.status, 200);
       assert.ok(tasksRouteRes.contentType?.includes('text/html'));
@@ -88,7 +88,7 @@ const fetchUrl = (fullPath: string): Promise<{ status: number; contentType?: str
       assert.ok(operationsRouteRes.contentType?.includes('text/html'));
     });
 
-    describe('6. فحص جلب حزم JavaScript المبنية تحت assets وتوافق MIME Type عبر Vite Preview', async () => {
+    await describe('6. فحص جلب حزم JavaScript المبنية تحت assets وتوافق MIME Type عبر Vite Preview', async () => {
       const assetsDir = path.join(DIST_DIR, 'assets');
       const files = fs.readdirSync(assetsDir);
       const jsFile = files.find(f => f.endsWith('.js'));
@@ -96,7 +96,10 @@ const fetchUrl = (fullPath: string): Promise<{ status: number; contentType?: str
 
       const jsRes = await fetchUrl(`${BASE}assets/${jsFile}`);
       assert.equal(jsRes.status, 200);
-      assert.ok(jsRes.contentType?.includes('application/javascript'));
+      assert.ok(
+        jsRes.contentType?.includes('javascript'),
+        `Expected JavaScript MIME type, received: ${jsRes.contentType}`
+      );
     });
 
     await previewServer.close();

@@ -10,7 +10,9 @@ import {
   AlertTriangle,
   FileCheck,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { GuideModal } from './GuideModal';
 import { useApp } from '../../context/AppContext';
@@ -29,7 +31,9 @@ export const SettingsManager: React.FC = () => {
     updateSchoolProfile,
     resetAllData,
     loadDemoData,
-    activityLogs
+    activityLogs,
+    isDarkMode,
+    toggleDarkMode
   } = useApp();
 
   const availableYears = getAvailableAcademicYears();
@@ -118,6 +122,65 @@ export const SettingsManager: React.FC = () => {
           <span>تم حفظ وتحديث بيانات المؤسسة بنجاح! سيتم اعتمادها في كافة التقارير الرسمية.</span>
         </div>
       )}
+
+      {/* Theme Settings Card */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-4">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-600">
+            {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              مظهر التطبيق (الوضع النهاري / الليلي)
+            </h2>
+            <p className="text-xs text-slate-400">التبديل الفوري بين المظهر الفاتح والمظهر الداكن المريح للعين</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <button
+            type="button"
+            onClick={() => { if (isDarkMode) toggleDarkMode(); }}
+            className={`p-4 rounded-xl border text-right flex items-center justify-between gap-3 transition-all ${
+              !isDarkMode
+                ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-100 text-amber-600">
+                <Sun className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-xs sm:text-sm">الوضع النهاري (Light Mode)</div>
+                <div className="text-[11px] text-slate-500">ألوان واضحة ومتباينة للمكاتب وظروف الإضاءة العادية</div>
+              </div>
+            </div>
+            {!isDarkMode && <CheckCircle2 className="w-5 h-5 text-teal-600 shrink-0" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { if (!isDarkMode) toggleDarkMode(); }}
+            className={`p-4 rounded-xl border text-right flex items-center justify-between gap-3 transition-all ${
+              isDarkMode
+                ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-indigo-900 text-indigo-300">
+                <Moon className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-xs sm:text-sm">الوضع الليلي (Dark Mode)</div>
+                <div className="text-[11px] text-slate-400">مظهر داكن مريح للعين، يقلل الإجهاد البصري واستهلاك البطارية</div>
+              </div>
+            </div>
+            {isDarkMode && <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />}
+          </button>
+        </div>
+      </div>
 
       {/* School Profile Card */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6">

@@ -73,7 +73,7 @@ export const Header: React.FC = () => {
                     مفكرة الإدارة التربوية
                   </h1>
                   <span className="text-[10px] bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 font-semibold px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800">
-                    التعليم الابتدائي
+                    الإدارة التربوية
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px]">

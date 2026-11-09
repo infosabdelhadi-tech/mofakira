@@ -80,7 +80,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
                   <input
                     type="text"
                     required
-                    placeholder="مثال: مدرسة الإمام البخاري الابتدائية"
+                    placeholder="مثال: مدرسة الإمام البخاري / ثانوية المسيرة"
                     value={formData.schoolName}
                     onChange={e => setFormData({ ...formData, schoolName: e.target.value })}
                     className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs sm:text-sm font-semibold"

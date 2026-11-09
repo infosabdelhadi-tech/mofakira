@@ -88,7 +88,7 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose }) => {
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 دليل استخدام مفكرة الإدارة التربوية
               </h2>
-              <p className="text-xs text-slate-400">نظام التدبير الإداري الرقمي لمديرات ومديري التعليم الابتدائي</p>
+              <p className="text-xs text-slate-400">نظام التدبير الإداري الرقمي لمديرات ومديري المؤسسات التعليمية</p>
             </div>
           </div>
           <button
