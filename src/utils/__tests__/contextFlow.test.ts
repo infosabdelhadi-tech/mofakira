@@ -1,9 +1,7 @@
+import { assert, describe } from './testHelper';
 import type { Meeting, MeetingDecision, Task } from '../../types';
 import { buildDecisionTaskPayload } from '../decisionConversion';
 
-console.log('--- اختبار التدفق الكامل لتحويل القرارات إلى مهام (AppContext Flow Simulation) ---');
-
-// Mock state and store simulating AppContext methods
 let tasksStore: Task[] = [];
 let meetingsStore: Meeting[] = [];
 
@@ -44,47 +42,48 @@ const mockConvertDecisionToTask = (meetingId: string, decision: MeetingDecision)
   return { success: true, taskId };
 };
 
-// 1. إعداد اجتماع وقرار تجريبي
-const initialDecision: MeetingDecision = {
-  id: 'dec-101',
-  decisionText: 'صياغة مشروع النظام الداخلي للمؤسسة وعرضه للمصادقة',
-  responsible: 'السيد المدير + لجنة الصياغة',
-  deadline: '2026-09-20',
-  status: 'قيد الانتظار'
-};
+describe('اختبار التدفق الكامل لتحويل القرارات إلى مهام في AppContext', () => {
+  const initialDecision: MeetingDecision = {
+    id: 'dec-101',
+    decisionText: 'صياغة مشروع النظام الداخلي للمؤسسة وعرضه للمصادقة',
+    responsible: 'السيد المدير + لجنة الصياغة',
+    deadline: '2026-09-20',
+    status: 'قيد الانتظار'
+  };
 
-const testMeeting: Meeting = {
-  id: 'meet-101',
-  title: 'اجتماع مجلس التدبير الافتتاحي',
-  type: 'مجلس التدبير',
-  date: '2026-09-15',
-  time: '15:00 - 17:00',
-  location: 'قاعة الاجتماعات',
-  attendees: 'أعضاء المجلس',
-  agenda: ['النظام الداخلي'],
-  discussionPoints: 'مناقشة بنود النظام الداخلي',
-  decisions: [initialDecision],
-  minutes: 'محضر الدورة العادية لمجلس التدبير',
-  academicYear: '2026 - 2027',
-  createdAt: '2026-09-15',
-  updatedAt: '2026-09-15'
-};
+  const testMeeting: Meeting = {
+    id: 'meet-101',
+    title: 'اجتماع مجلس التدبير الافتتاحي',
+    type: 'مجلس التدبير',
+    date: '2026-09-15',
+    time: '15:00 - 17:00',
+    location: 'قاعة الاجتماعات',
+    attendees: 'أعضاء المجلس',
+    agenda: ['النظام الداخلي'],
+    discussionPoints: 'مناقشة بنود النظام الداخلي',
+    decisions: [initialDecision],
+    minutes: 'محضر الدورة العادية لمجلس التدبير',
+    academicYear: '2026 - 2027',
+    createdAt: '2026-09-15',
+    updatedAt: '2026-09-15'
+  };
 
-meetingsStore = [testMeeting];
+  meetingsStore = [testMeeting];
+  tasksStore = [];
 
-// 2. تجربة التحويل للمرة الأولى
-const firstConversion = mockConvertDecisionToTask('meet-101', testMeeting.decisions[0]);
-console.assert(firstConversion.success === true, 'First conversion must succeed');
-console.assert(tasksStore.length === 1, 'Task should be created in tasksStore');
-console.assert(tasksStore[0].title === initialDecision.decisionText, 'Task title should match decision text');
-console.assert(tasksStore[0].meetingId === 'meet-101', 'Task must link to meetingId');
-console.assert(tasksStore[0].decisionId === 'dec-101', 'Task must link to decisionId');
-console.assert(testMeeting.decisions[0].convertedTaskId === firstConversion.taskId, 'Decision convertedTaskId must be updated');
-console.assert(testMeeting.decisions[0].status === 'قيد التنفيذ', 'Decision status must transition to "قيد التنفيذ"');
-console.log('✓ التحويل الأول نجح: تم إنشاء المهمة، وتوثيق الربط التبادلي، وتحديث حالة القرار إلى قيد التنفيذ.');
+  // التحويل الأول
+  const first = mockConvertDecisionToTask('meet-101', testMeeting.decisions[0]);
+  assert.equal(first.success, true);
+  assert.equal(tasksStore.length, 1);
+  assert.equal(tasksStore[0].title, initialDecision.decisionText);
+  assert.equal(tasksStore[0].meetingId, 'meet-101');
+  assert.equal(tasksStore[0].decisionId, 'dec-101');
+  assert.equal(testMeeting.decisions[0].convertedTaskId, first.taskId);
+  assert.equal(testMeeting.decisions[0].status, 'قيد التنفيذ');
 
-// 3. تجربة النقر المكرر أو إعادة المحاولة على نفس القرار (Duplicate Attempt)
-const duplicateConversion = mockConvertDecisionToTask('meet-101', testMeeting.decisions[0]);
-console.assert(duplicateConversion.success === undefined && duplicateConversion.error !== undefined, 'Duplicate conversion must be rejected');
-console.assert(tasksStore.length === 1, 'No duplicate tasks should be created');
-console.log('✓ تم منع التحويل المكرر بنجاح وحماية جدول المهام من التكرار:', duplicateConversion.error);
+  // محاولة النقر المكرر
+  const duplicate = mockConvertDecisionToTask('meet-101', testMeeting.decisions[0]);
+  assert.equal(duplicate.success, undefined);
+  assert.match(duplicate.error || '', /تم تحويل هذا القرار مسبقاً/);
+  assert.equal(tasksStore.length, 1, 'Tasks store count must not increase on duplicate call');
+});
