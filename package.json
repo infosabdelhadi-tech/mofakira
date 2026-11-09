@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "tsx src/utils/__tests__/academicYear.test.ts && tsx src/utils/__tests__/backupValidation.test.ts && tsx src/utils/__tests__/decisionConversion.test.ts && tsx src/utils/__tests__/contextFlow.test.ts && tsx src/utils/__tests__/pwaSubpath.test.ts && tsx src/utils/__tests__/subpathServer.test.ts && tsx src/utils/__tests__/themeAndSettings.test.ts && tsx src/utils/__tests__/storageResilience.test.ts && tsx src/utils/__tests__/swOffline.test.ts",
+    "test": "tsx src/utils/__tests__/academicYear.test.ts && tsx src/utils/__tests__/backupValidation.test.ts && tsx src/utils/__tests__/decisionConversion.test.ts && tsx src/utils/__tests__/contextFlow.test.ts && tsx src/utils/__tests__/pwaSubpath.test.ts && tsx src/utils/__tests__/subpathServer.test.ts && tsx src/utils/__tests__/themeAndSettings.test.ts && tsx src/utils/__tests__/storageResilience.test.ts && tsx src/utils/__tests__/swOffline.test.ts && tsx src/utils/__tests__/themeAndLayout.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

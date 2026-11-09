@@ -30,13 +30,13 @@ export const AppContent: React.FC = () => {
       {/* Sticky Header */}
       <Header />
 
-      {/* Main Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      {/* Main Container - Full-width layout without restrictive max-width constraint */}
+      <div className="flex-1 flex w-full max-w-none">
         {/* Desktop Sidebar */}
         <Sidebar />
 
         {/* Dynamic Main View */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 min-w-0 overflow-y-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 xl:px-10 py-6 min-w-0 overflow-y-auto">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'annual' && <AnnualPlanManager />}
           {activeTab === 'tasks' && <TaskManager />}

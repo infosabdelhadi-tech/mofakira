@@ -144,7 +144,7 @@ export const ReportsManager: React.FC = () => {
       </div>
 
       {/* Official Moroccan Educational Document View (Screen & Print ready) */}
-      <div className="bg-white text-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 shadow-xl max-w-4xl mx-auto space-y-8 font-cairo">
+      <div className="bg-white text-slate-900 p-8 sm:p-12 rounded-3xl border border-slate-200 shadow-xl w-full space-y-8 font-cairo">
 
         {/* Moroccan Official Kingdom Header */}
         <div className="border-b-2 border-slate-900 pb-6 text-center space-y-1.5">
