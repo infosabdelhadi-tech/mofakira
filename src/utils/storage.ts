@@ -58,6 +58,7 @@ export const saveToStorage = <T>(key: string, data: T): boolean => {
 };
 
 export const getInitialProfile = (): SchoolProfile => {
+  // Always start with empty school profile (no fake demo names) for a new user
   return loadFromStorage<SchoolProfile>(STORAGE_KEYS.PROFILE, initialSchoolProfile);
 };
 
@@ -91,15 +92,8 @@ export const getInitialNotifications = (): AppNotification[] => {
 };
 
 export const getInitialLogs = (): ActivityLog[] => {
-  return loadFromStorage<ActivityLog[]>(STORAGE_KEYS.LOGS, [
-    {
-      id: 'log-1',
-      timestamp: new Date().toISOString(),
-      action: 'تهيئة وتحديث النظام والمفكرة الإدارية',
-      entityType: 'profile',
-      entityTitle: 'المؤسسة التعليمية'
-    }
-  ]);
+  // Clean empty array for activity logs for new installations
+  return loadFromStorage<ActivityLog[]>(STORAGE_KEYS.LOGS, []);
 };
 
 export const BACKUP_SCHEMA_VERSION = 2;
@@ -156,7 +150,8 @@ export interface ValidationResult {
 }
 
 /**
- * Validates a backup file with deep integrity checking across all modules and fields.
+ * Validates a backup file with strict integrity checking across all modules, schema version, and entities.
+ * Rejects unsupported versions, missing core fields, corrupted structures, and invalid array elements.
  */
 export const validateBackupFile = (jsonString: string): ValidationResult => {
   try {
@@ -164,81 +159,114 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       return { isValid: false, error: 'الملف فارغ أو غير مقروء.' };
     }
 
-    const parsed = JSON.parse(jsonString);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch {
+      return { isValid: false, error: 'تعذر قراءة ملف النسخة الاحتياطية. يرجى التأكد من اختيار ملف JSON سليم.' };
+    }
 
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return { isValid: false, error: 'الملف لا يحتوي على كائن بيانات JSON سليم.' };
     }
 
-    // 1. Verify schema or identifier
-    if (parsed.app && typeof parsed.app === 'string' && !parsed.app.includes('MOFAKKIRA') && !parsed.app.includes('MOFAKIRA')) {
+    // 1. Strict Application Identity Check
+    if (typeof parsed.app !== 'string' || (!parsed.app.includes('MOFAKKIRA') && !parsed.app.includes('MOFAKIRA'))) {
       return { isValid: false, error: 'الملف ينتمي لتطبيق آخر ولا يتوافق مع مفكرة الإدارة التربوية.' };
     }
 
-    // 2. Validate schoolProfile if present
-    if (parsed.schoolProfile) {
-      if (typeof parsed.schoolProfile !== 'object' || Array.isArray(parsed.schoolProfile)) {
-        return { isValid: false, error: 'بيانات هوية المؤسسة (schoolProfile) غير صالحة في الملف.' };
-      }
+    // 2. Strict Schema Version Check
+    if (typeof parsed.schemaVersion !== 'number' || parsed.schemaVersion < 1 || parsed.schemaVersion > BACKUP_SCHEMA_VERSION) {
+      return { isValid: false, error: `إصدار النسخة الاحتياطية (${parsed.schemaVersion}) غير مدعوم من قبل هذا الإصدار من التطبيق.` };
     }
 
-    // 3. Helper to validate array of items
-    const validateArrayItems = (arr: any, _itemName: string, requiredField?: string) => {
-      if (arr === undefined || arr === null) return true;
-      if (!Array.isArray(arr)) return false;
-      for (const item of arr) {
-        if (!item || typeof item !== 'object') return false;
-        if (requiredField && typeof item[requiredField] !== 'string') return false;
+    // 3. Strict Export Date Check
+    if (!parsed.exportDate || typeof parsed.exportDate !== 'string' || isNaN(Date.parse(parsed.exportDate))) {
+      return { isValid: false, error: 'تاريخ تصدير النسخة الاحتياطية مفقود أو غير صالح.' };
+    }
+
+    // 4. Strict School Profile Validation
+    if (!parsed.schoolProfile || typeof parsed.schoolProfile !== 'object' || Array.isArray(parsed.schoolProfile)) {
+      return { isValid: false, error: 'بيانات هوية المؤسسة (schoolProfile) مفقودة أو غير صالحة.' };
+    }
+    const profile = parsed.schoolProfile;
+    if (typeof profile.academicYear !== 'string') {
+      return { isValid: false, error: 'حقل الموسم الدراسي في بطاقة المؤسسة غير صالح.' };
+    }
+
+    // 5. Array Validation Helper
+    const validateArrayItems = (
+      arr: any,
+      fieldName: string,
+      requiredKeys: string[]
+    ): { valid: boolean; error?: string } => {
+      if (!Array.isArray(arr)) {
+        return { valid: false, error: `حقل (${fieldName}) غير موجود كمصفوفة صالحة في النسخة الاحتياطية.` };
       }
-      return true;
+      for (let i = 0; i < arr.length; i++) {
+        const item = arr[i];
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          return { valid: false, error: `العنصر رقم ${i + 1} في قائمة (${fieldName}) تالف أو غير صالح.` };
+        }
+        for (const req of requiredKeys) {
+          if (item[req] === undefined || item[req] === null || typeof item[req] !== 'string') {
+            return { valid: false, error: `العنصر رقم ${i + 1} في قائمة (${fieldName}) تنقصه الخاصية الإلزامية (${req}).` };
+          }
+        }
+      }
+      return { valid: true };
     };
 
-    if (!validateArrayItems(parsed.tasks, 'المهام', 'title')) {
-      return { isValid: false, error: 'تنسيق قائمة المهام (tasks) تالف أو تنقصه حقول أساسية.' };
+    // Tasks check
+    const tasksVal = validateArrayItems(parsed.tasks, 'tasks', ['title', 'status', 'priority', 'dueDate']);
+    if (!tasksVal.valid) return { isValid: false, error: tasksVal.error };
+
+    // Appointments check
+    const aptsVal = validateArrayItems(parsed.appointments, 'appointments', ['title', 'date', 'startTime']);
+    if (!aptsVal.valid) return { isValid: false, error: aptsVal.error };
+
+    // Operations check
+    const opsVal = validateArrayItems(parsed.operations, 'operations', ['title', 'status']);
+    if (!opsVal.valid) return { isValid: false, error: opsVal.error };
+
+    // Meetings check
+    const meetsVal = validateArrayItems(parsed.meetings, 'meetings', ['title', 'date']);
+    if (!meetsVal.valid) return { isValid: false, error: meetsVal.error };
+
+    // Annual Program check
+    const annVal = validateArrayItems(parsed.annualProgram, 'annualProgram', ['title', 'month']);
+    if (!annVal.valid) return { isValid: false, error: annVal.error };
+
+    // Daily Notes check
+    const notesVal = validateArrayItems(parsed.dailyNotes, 'dailyNotes', ['title', 'date']);
+    if (!notesVal.valid) return { isValid: false, error: notesVal.error };
+
+    // Notifications check
+    if (parsed.notifications !== undefined && !Array.isArray(parsed.notifications)) {
+      return { isValid: false, error: 'حقل الإشعارات (notifications) غير صالح.' };
     }
 
-    if (!validateArrayItems(parsed.appointments, 'المواعيد', 'title')) {
-      return { isValid: false, error: 'تنسيق قائمة المواعيد (appointments) تالف أو تنقصه حقول أساسية.' };
-    }
-
-    if (!validateArrayItems(parsed.operations, 'العمليات', 'title')) {
-      return { isValid: false, error: 'تنسيق قائمة العمليات الإدارية (operations) تالف.' };
-    }
-
-    if (!validateArrayItems(parsed.meetings, 'المجالس', 'title')) {
-      return { isValid: false, error: 'تنسيق محاضر المجالس (meetings) تالف.' };
-    }
-
-    if (!validateArrayItems(parsed.annualProgram, 'البرنامج السنوي', 'title')) {
-      return { isValid: false, error: 'تنسيق أنشطة البرنامج السنوي (annualProgram) تالف.' };
-    }
-
-    if (!validateArrayItems(parsed.dailyNotes, 'الملاحظات اليومية', 'title')) {
-      return { isValid: false, error: 'تنسيق تدوينات المفكرة اليومية (dailyNotes) تالف.' };
-    }
-
-    // Check at least one core entity exists
-    const hasCore = parsed.schoolProfile || Array.isArray(parsed.tasks) || Array.isArray(parsed.operations) || Array.isArray(parsed.appointments);
-    if (!hasCore) {
-      return { isValid: false, error: 'الملف يفتقر إلى بيانات مفكرة الإدارة التربوية الأساسية.' };
+    // Activity Logs check
+    if (parsed.activityLogs !== undefined && !Array.isArray(parsed.activityLogs)) {
+      return { isValid: false, error: 'سجل الأنشطة (activityLogs) غير صالح.' };
     }
 
     return {
       isValid: true,
       summary: {
-        tasksCount: Array.isArray(parsed.tasks) ? parsed.tasks.length : 0,
-        appointmentsCount: Array.isArray(parsed.appointments) ? parsed.appointments.length : 0,
-        operationsCount: Array.isArray(parsed.operations) ? parsed.operations.length : 0,
-        meetingsCount: Array.isArray(parsed.meetings) ? parsed.meetings.length : 0,
-        annualCount: Array.isArray(parsed.annualProgram) ? parsed.annualProgram.length : 0,
-        notesCount: Array.isArray(parsed.dailyNotes) ? parsed.dailyNotes.length : 0,
+        tasksCount: parsed.tasks.length,
+        appointmentsCount: parsed.appointments.length,
+        operationsCount: parsed.operations.length,
+        meetingsCount: parsed.meetings.length,
+        annualCount: parsed.annualProgram.length,
+        notesCount: parsed.dailyNotes.length,
         schoolName: parsed.schoolProfile?.schoolName || 'غير محدد',
-        exportDate: parsed.exportDate ? new Date(parsed.exportDate).toLocaleString('ar-MA') : 'غير متوفر'
+        exportDate: new Date(parsed.exportDate).toLocaleString('ar-MA')
       },
       data: parsed as BackupDataStructure
     };
-  } catch {
-    return { isValid: false, error: 'تعذر قراءة ملف النسخة الاحتياطية. يرجى التأكد من اختيار ملف JSON سليم.' };
+  } catch (err: any) {
+    return { isValid: false, error: `تعذر التحقق من ملف النسخة الاحتياطية: ${err?.message || 'خطأ غير معروف'}` };
   }
 };
 
@@ -247,7 +275,7 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
  * Captures current snapshot, performs trial writes, and rolls back fully if storage quota or error occurs.
  */
 export const restoreBackupData = (data: BackupDataStructure): { success: boolean; error?: string } => {
-  // 1. Capture current snapshot for rollback
+  // 1. Capture complete current snapshot for rollback protection
   const snapshot: Record<string, string | null> = {};
   for (const key of Object.values(STORAGE_KEYS)) {
     snapshot[key] = localStorage.getItem(key);
@@ -255,36 +283,44 @@ export const restoreBackupData = (data: BackupDataStructure): { success: boolean
 
   try {
     // 2. Prepare staging payload
-    const stagePayload: [string, any][] = [];
-    if (data.schoolProfile) stagePayload.push([STORAGE_KEYS.PROFILE, data.schoolProfile]);
-    if (Array.isArray(data.tasks)) stagePayload.push([STORAGE_KEYS.TASKS, data.tasks]);
-    if (Array.isArray(data.appointments)) stagePayload.push([STORAGE_KEYS.APPOINTMENTS, data.appointments]);
-    if (Array.isArray(data.operations)) stagePayload.push([STORAGE_KEYS.OPERATIONS, data.operations]);
-    if (Array.isArray(data.dailyNotes)) stagePayload.push([STORAGE_KEYS.NOTES, data.dailyNotes]);
-    if (Array.isArray(data.meetings)) stagePayload.push([STORAGE_KEYS.MEETINGS, data.meetings]);
-    if (Array.isArray(data.annualProgram)) stagePayload.push([STORAGE_KEYS.ANNUAL_PROGRAM, data.annualProgram]);
-    if (Array.isArray(data.notifications)) stagePayload.push([STORAGE_KEYS.NOTIFICATIONS, data.notifications]);
-    if (Array.isArray(data.activityLogs)) stagePayload.push([STORAGE_KEYS.LOGS, data.activityLogs]);
+    const stagePayload: [string, any][] = [
+      [STORAGE_KEYS.PROFILE, data.schoolProfile],
+      [STORAGE_KEYS.TASKS, data.tasks],
+      [STORAGE_KEYS.APPOINTMENTS, data.appointments],
+      [STORAGE_KEYS.OPERATIONS, data.operations],
+      [STORAGE_KEYS.NOTES, data.dailyNotes],
+      [STORAGE_KEYS.MEETINGS, data.meetings],
+      [STORAGE_KEYS.ANNUAL_PROGRAM, data.annualProgram],
+      [STORAGE_KEYS.NOTIFICATIONS, data.notifications || []],
+      [STORAGE_KEYS.LOGS, data.activityLogs || []]
+    ];
 
-    // 3. Perform write with verification
+    // 3. Perform write without trimming existing keys during restore
     for (const [key, value] of stagePayload) {
-      const ok = saveToStorage(key, value);
-      if (!ok) {
-        throw new Error(`تعذر حفظ البيانات في المفتاح ${key} نظراً لنفاد مساحة التخزين.`);
+      const serialized = JSON.stringify(value);
+      try {
+        localStorage.setItem(key, serialized);
+      } catch (writeErr: any) {
+        throw new Error(`تعذر حفظ البيانات في المفتاح (${key}): ${writeErr?.message || 'نفدت مساحة التخزين'}`);
       }
     }
 
     return { success: true };
   } catch (err: any) {
-    console.error('Safe Restore failed. Rolling back to previous snapshot...', err);
-    // Rollback to prior snapshot
-    for (const [key, prevVal] of Object.entries(snapshot)) {
-      if (prevVal === null) {
-        localStorage.removeItem(key);
-      } else {
-        localStorage.setItem(key, prevVal);
+    console.error('Safe Restore failed. Executing atomic rollback to previous snapshot...', err);
+    // Atomic rollback to prior snapshot with defensive error handling
+    try {
+      for (const [key, prevVal] of Object.entries(snapshot)) {
+        if (prevVal === null) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, prevVal);
+        }
       }
+    } catch (rollbackErr) {
+      console.error('Critical: Rollback error encountered:', rollbackErr);
     }
+
     return {
       success: false,
       error: err?.message || 'فشلت عملية الاسترجاع وتم الرجوع للحالة السابقة دون أي فقد للبيانات الحالية.'

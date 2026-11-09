@@ -33,8 +33,8 @@ const validBackup = JSON.stringify({
     academy: 'جهة الرباط سلا القنيطرة'
   },
   tasks: [
-    { id: 't1', title: 'إعداد جداول الحصص', status: 'جديدة', priority: 'عاجلة جداً' },
-    { id: 't2', title: 'فحص مطافئ الحريق', status: 'مكتملة', priority: 'مهمة' }
+    { id: 't1', title: 'إعداد جداول الحصص', status: 'جديدة', priority: 'عاجلة جداً', dueDate: '2026-09-15' },
+    { id: 't2', title: 'فحص مطافئ الحريق', status: 'مكتملة', priority: 'مهمة', dueDate: '2026-09-20' }
   ],
   appointments: [
     { id: 'a1', title: 'لقاء مع المفتش', date: '2026-09-10', startTime: '10:00' }
@@ -43,13 +43,13 @@ const validBackup = JSON.stringify({
     { id: 'op1', title: 'مشروع المؤسسة المندمج', progress: 40, status: 'قيد التنفيذ' }
   ],
   meetings: [
-    { id: 'm1', title: 'مجلس التدبير - الدورة الأولى', type: 'مجلس التدبير' }
+    { id: 'm1', title: 'مجلس التدبير - الدورة الأولى', type: 'مجلس التدبير', date: '2026-09-12' }
   ],
   annualProgram: [
     { id: 'ap1', title: 'استقبال التلاميذ الجدد', month: 'شتنبر' }
   ],
   dailyNotes: [
-    { id: 'n1', title: 'ملاحظة حول انطلاق الحصص', content: 'سير ممتاز' }
+    { id: 'n1', title: 'ملاحظة حول انطلاق الحصص', date: '2026-09-15', content: 'سير ممتاز' }
   ],
   notifications: [
     { id: 'not1', title: 'تنبيه موعد', read: false }
@@ -95,8 +95,78 @@ console.log('✓ تم رفض ملف لتطبيق غير متطابق بنجاح:
 // 5. اختبار رفض ملف تنقصه الحقول الأساسية في المهام
 const invalidTasksFormat = JSON.stringify({
   app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
+  schemaVersion: BACKUP_SCHEMA_VERSION,
+  exportDate: new Date().toISOString(),
+  schoolProfile: { schoolName: 'مدرسة', academicYear: '2026 - 2027' },
   tasks: ['not-an-object', { noTitle: true }]
 });
 const invalidTasksRes = validateBackupFile(invalidTasksFormat);
 console.assert(invalidTasksRes.isValid === false, 'Invalid task structures should be rejected');
 console.log('✓ تم رصد ورفض بنية المهام التالفة بنجاح:', invalidTasksRes.error);
+
+// 6. اختبار رفض إصدار schema غير مدعوم
+const unsupportedSchema = JSON.stringify({
+  app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
+  schemaVersion: 999,
+  exportDate: new Date().toISOString(),
+  schoolProfile: { schoolName: 'مدرسة', academicYear: '2026 - 2027' }
+});
+const unsupportedSchemaRes = validateBackupFile(unsupportedSchema);
+console.assert(unsupportedSchemaRes.isValid === false, 'Unsupported schema version must be rejected');
+console.log('✓ تم رفض schema version غير المدعوم بنجاح:', unsupportedSchemaRes.error);
+
+// 7. اختبار محاكاة QuotaExceededError أثناء الاسترجاع والتحقق من الـ Rollback التام دون فقد أي بيانات
+console.log('--- اختبار محاكاة QuotaExceededError أثناء الاسترجاع (Atomic Rollback Test) ---');
+// حفظ بيانات مستخدم أصلية ومهمة
+const originalTasks = [{ id: 'orig-1', title: 'مهمة أصلية سابقة لا يجب أن تضيع', status: 'جديدة' }];
+localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(originalTasks));
+localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify({ schoolName: 'المدرسة الأصلية', academicYear: '2026 - 2027' }));
+
+// تجهيز نسخة استرجاع جديدة
+const incomingBackupData = {
+  app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
+  appVersion: '1.0.0',
+  schemaVersion: BACKUP_SCHEMA_VERSION,
+  exportDate: new Date().toISOString(),
+  schoolProfile: { schoolName: 'مدرسة جديدة من النسخة', academicYear: '2026 - 2027' },
+  tasks: [{ id: 'new-t', title: 'مهمة جديدة', status: 'جديدة', priority: 'عادية', dueDate: '2026-10-01' }],
+  appointments: [],
+  operations: [],
+  dailyNotes: [],
+  meetings: [],
+  annualProgram: [],
+  notifications: [],
+  activityLogs: []
+};
+
+// محاكاة خطأ نفاد مساحة التخزين أثناء محاولة كتابة TASKS خلال مرحلة الاسترجاع فقط
+const originalSetItem = localStorage.setItem;
+let isRestoring = true;
+let quotaTriggered = false;
+(localStorage as any).setItem = (k: string, v: string) => {
+  if (isRestoring && k === STORAGE_KEYS.TASKS && !quotaTriggered) {
+    quotaTriggered = true;
+    const quotaErr = new Error('QuotaExceededError: DomException 22');
+    quotaErr.name = 'QuotaExceededError';
+    throw quotaErr;
+  }
+  // أثناء الـ rollback نسمح بالكتابة لاسترجاع الـ snapshot
+  originalSetItem.call(localStorage, k, v);
+};
+
+// تنفيذ الاسترجاع المفترض أن يفشل
+const failedRestoreRes = restoreBackupData(incomingBackupData as any);
+isRestoring = false;
+console.assert(failedRestoreRes.success === false, 'Restore should fail gracefully on QuotaExceededError');
+console.log('✓ تم التقاط خطأ امتلاء التخزين بنجاح وسحب الاسترجاع بأمان:', failedRestoreRes.error);
+
+// استعادة دالة setItem الأصلية للتأكد من حالة البيانات بعد Rollback
+(localStorage as any).setItem = originalSetItem;
+
+// التحقق الصارم من بقاء البيانات الأصلية كما كانت دون أي فقد أو مسح
+const preservedTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
+const preservedProfile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || '{}');
+console.assert(preservedTasks.length === 1, 'Rollback failed: Tasks were lost or altered');
+console.assert(preservedTasks[0].id === 'orig-1', 'Rollback failed: Task ID mismatch');
+console.assert(preservedProfile.schoolName === 'المدرسة الأصلية', 'Rollback failed: Profile was overwritten');
+console.log('✓ تم التحقق بنسبة 100%: جميع البيانات الأصلية محفوظة بالكامل بعد الـ Rollback!');

@@ -566,6 +566,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const meeting = meetings.find(m => m.id === meetingId);
     if (!meeting) return;
 
+    // Extra double-check in state in case of rapid clicks
+    const currentDecision = meeting.decisions.find(d => d.id === decision.id);
+    if (currentDecision?.convertedTaskId) {
+      alert('تم تحويل هذا القرار مسبقاً إلى مهمة عمل في جدول المهام.');
+      return;
+    }
+
     // Use pure helper function that is shared between production and unit tests
     const result = buildDecisionTaskPayload(meeting, decision, schoolProfile.principalName);
     if (!result.success || !result.taskPayload) {
@@ -575,7 +582,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const taskId = addTask(result.taskPayload);
 
-    // Update the decision with the taskId and sync status
+    // Update the decision with the taskId and sync status to 'قيد التنفيذ'
     setMeetings(prev => prev.map(m => {
       if (m.id === meetingId) {
         return {
