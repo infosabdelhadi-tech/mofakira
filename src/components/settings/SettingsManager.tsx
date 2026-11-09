@@ -80,8 +80,12 @@ export const SettingsManager: React.FC = () => {
 
   const handleConfirmRestore = () => {
     if (!validationModal?.data) return;
-    restoreBackupData(validationModal.data);
-    alert('تمت استعادة البيانات بنجاح! سيتم تحديث الصفحة.');
+    const result = restoreBackupData(validationModal.data);
+    if (!result.success) {
+      alert(result.error || 'فشلت عملية الاسترجاع وتم الحفاظ على البيانات السابقة.');
+      return;
+    }
+    alert('تمت استعادة كافة البيانات بنجاح وأمان! سيتم تحديث الصفحة لاعتمادها.');
     window.location.reload();
   };
 
@@ -285,6 +289,17 @@ export const SettingsManager: React.FC = () => {
               الأمان، النسخ الاحتياطي واستعادة البيانات
             </h2>
             <p className="text-xs text-slate-400">حفظ نسخة احتياطية محلية بصيغة JSON لنقلها أو استرجاعها بأمان</p>
+          </div>
+        </div>
+
+        {/* Local-first Notice banner */}
+        <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
+            <p className="font-bold">تنبيه هام حول خصوصية وتخزين البيانات:</p>
+            <p className="text-[11px] leading-relaxed">
+              تعمل مفكرة الإدارة التربوية بنظام محلي (Local-First) لحماية سرية معطيات المؤسسة؛ حيث تُحفظ سجلاتك على ذاكرة هذا المتصفح وهذا الجهاز فقط، ولا تتم مزامنتها تلقائياً عبر السحابة. لذلك نوصي بشدة بتنزيل <strong>نسخة احتياطية دورياً</strong> ونقلها إلى قرص خارجي أو حاسوب آخر لتفادي فقدان البيانات عند مسح ذاكرة التخزين المؤقت للمتصفح.
+            </p>
           </div>
         </div>
 

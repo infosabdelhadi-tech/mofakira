@@ -27,6 +27,7 @@ import {
   STORAGE_KEYS,
   resetAllDataToDefault
 } from '../utils/storage';
+import { buildDecisionTaskPayload } from '../utils/decisionConversion';
 import {
   demoSchoolProfile,
   initialTasks,
@@ -562,50 +563,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const convertDecisionToTask = (meetingId: string, decision: MeetingDecision) => {
-    // 1. Guard against accidental duplicate conversion
-    if (decision.convertedTaskId) {
-      alert('تم تحويل هذا القرار مسبقاً إلى مهمة عمل في جدول المهام.');
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (!meeting) return;
+
+    // Use pure helper function that is shared between production and unit tests
+    const result = buildDecisionTaskPayload(meeting, decision, schoolProfile.principalName);
+    if (!result.success || !result.taskPayload) {
+      alert(result.error || 'تعذر تحويل القرار.');
       return;
     }
 
-    const meeting = meetings.find(m => m.id === meetingId);
+    const taskId = addTask(result.taskPayload);
 
-    // 2. Derive appropriate priority instead of hardcoding 'عاجلة جداً'
-    const today = new Date().toISOString().split('T')[0];
-    let calculatedPriority: 'عاجلة جداً' | 'مهمة' | 'متوسطة' = 'مهمة';
-    if (decision.deadline) {
-      const daysDiff = Math.ceil((new Date(decision.deadline).getTime() - new Date(today).getTime()) / (1000 * 3600 * 24));
-      if (daysDiff <= 3) {
-        calculatedPriority = 'عاجلة جداً';
-      } else if (daysDiff <= 10) {
-        calculatedPriority = 'مهمة';
-      } else {
-        calculatedPriority = 'متوسطة';
-      }
-    }
-
-    // 3. Create the linked task with meeting and decision IDs
-    const taskId = addTask({
-      title: decision.decisionText,
-      description: `مهمة تنفيذية منبثقة عن اجتماع: "${meeting?.title || 'اجتماع مجلس'}" المنعقد بتاريخ ${meeting?.date || today}.`,
-      category: 'الاجتماعات والمجالس',
-      startDate: today,
-      dueDate: decision.deadline || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-      dueTime: '12:00',
-      priority: calculatedPriority,
-      status: 'قيد التنفيذ',
-      assignedTo: decision.responsible || schoolProfile.principalName,
-      completionPercentage: 0,
-      meetingId,
-      decisionId: decision.id,
-      checklist: [
-        { id: 'c-dec-1', text: 'مباشرة إجراءات تنفيذ القرار', completed: false },
-        { id: 'c-dec-2', text: 'إعداد تقرير الإنجاز وموافاة رئيس المؤسسة', completed: false }
-      ],
-      attachments: []
-    });
-
-    // 4. Update the decision with the taskId and sync status
+    // Update the decision with the taskId and sync status
     setMeetings(prev => prev.map(m => {
       if (m.id === meetingId) {
         return {

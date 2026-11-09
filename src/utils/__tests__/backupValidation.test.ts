@@ -1,58 +1,102 @@
-import { validateBackupFile } from '../storage';
+import {
+  validateBackupFile,
+  restoreBackupData,
+  BACKUP_SCHEMA_VERSION,
+  STORAGE_KEYS,
+  loadFromStorage
+} from '../storage';
 
-console.log('--- اختبار سلامة النسخ الاحتياطي والاسترجاع ---');
+console.log('--- اختبار سلامة النسخ الاحتياطي والاسترجاع الشامل (All Modules & Entities) ---');
 
-// 1. فحص ملف سليم ومكتمل
-const completeBackup = {
+// Mock localStorage for Node environment if missing
+if (typeof localStorage === 'undefined' || localStorage === null) {
+  const store: Record<string, string> = {};
+  (globalThis as any).localStorage = {
+    getItem: (k: string) => store[k] || null,
+    setItem: (k: string, v: string) => { store[k] = v; },
+    removeItem: (k: string) => { delete store[k]; },
+    clear: () => { Object.keys(store).forEach(k => delete store[k]); }
+  };
+}
+
+// 1. اختبار ملف صالح متكامل يشمل جميع الوحدات السبع
+const validBackup = JSON.stringify({
   app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
   appVersion: '1.0.0',
-  schemaVersion: 2,
+  schemaVersion: BACKUP_SCHEMA_VERSION,
   exportDate: new Date().toISOString(),
   schoolProfile: {
-    schoolName: 'مدرسة المسيرة الابتدائية',
+    schoolName: 'مدرسة ابن خلدون الابتدائية',
+    principalName: 'ذ. عبد الرحيم',
     academicYear: '2026 - 2027',
-    principalName: 'ذ. عبد الرحيم'
+    directorate: 'الرباط',
+    academy: 'جهة الرباط سلا القنيطرة'
   },
   tasks: [
-    { id: 't1', title: 'إعداد جدول الحصص', status: 'قيد التنفيذ', priority: 'عاجلة جداً' },
-    { id: 't2', title: 'مراقبة التدفئة', status: 'مكتملة', priority: 'مهمة' }
+    { id: 't1', title: 'إعداد جداول الحصص', status: 'جديدة', priority: 'عاجلة جداً' },
+    { id: 't2', title: 'فحص مطافئ الحريق', status: 'مكتملة', priority: 'مهمة' }
   ],
   appointments: [
-    { id: 'a1', title: 'مجلس تدبير', date: '2026-10-15' }
+    { id: 'a1', title: 'لقاء مع المفتش', date: '2026-09-10', startTime: '10:00' }
   ],
   operations: [
-    { id: 'op1', title: 'الدخول المدرسي', progress: 80, phases: [{ id: 'p1', title: 'المرحلة 1', status: 'مكتملة' }] }
-  ],
-  dailyNotes: [
-    { id: 'n1', title: 'ملاحظة صباحية' }
+    { id: 'op1', title: 'مشروع المؤسسة المندمج', progress: 40, status: 'قيد التنفيذ' }
   ],
   meetings: [
-    { id: 'm1', title: 'مجلس التدبير الأول', decisions: [{ id: 'd1', decisionText: 'المصادقة على البرنامج', convertedTaskId: 't1' }] }
+    { id: 'm1', title: 'مجلس التدبير - الدورة الأولى', type: 'مجلس التدبير' }
   ],
   annualProgram: [
-    { id: 'ap1', title: 'برنامج شتنبر', month: 'شتنبر (Septembre)' }
+    { id: 'ap1', title: 'استقبال التلاميذ الجدد', month: 'شتنبر' }
   ],
-  notifications: [],
-  activityLogs: []
-};
+  dailyNotes: [
+    { id: 'n1', title: 'ملاحظة حول انطلاق الحصص', content: 'سير ممتاز' }
+  ],
+  notifications: [
+    { id: 'not1', title: 'تنبيه موعد', read: false }
+  ],
+  activityLogs: [
+    { id: 'log1', action: 'إنشاء ملف', entityType: 'profile', entityTitle: 'مدرسة' }
+  ]
+});
 
-const validResult = validateBackupFile(JSON.stringify(completeBackup));
-console.assert(validResult.isValid === true, 'Valid backup should be approved');
-console.assert(validResult.summary?.tasksCount === 2, 'Summary should report 2 tasks');
-console.assert(validResult.summary?.appointmentsCount === 1, 'Summary should report 1 appointment');
-console.assert(validResult.summary?.operationsCount === 1, 'Summary should report 1 operation');
-console.assert(validResult.summary?.meetingsCount === 1, 'Summary should report 1 meeting');
-console.assert(validResult.summary?.schoolName === 'مدرسة المسيرة الابتدائية', 'School name should match');
-console.log('Valid backup validation passed! Summary:', validResult.summary);
+const validRes = validateBackupFile(validBackup);
+console.assert(validRes.isValid === true, `Valid backup validation failed: ${validRes.error}`);
+console.assert(validRes.summary?.tasksCount === 2, 'Tasks count mismatch');
+console.assert(validRes.summary?.appointmentsCount === 1, 'Appointments count mismatch');
+console.assert(validRes.summary?.operationsCount === 1, 'Operations count mismatch');
+console.assert(validRes.summary?.meetingsCount === 1, 'Meetings count mismatch');
+console.assert(validRes.summary?.annualCount === 1, 'Annual program count mismatch');
+console.assert(validRes.summary?.notesCount === 1, 'Notes count mismatch');
+console.assert(validRes.summary?.schoolName === 'مدرسة ابن خلدون الابتدائية', 'School name mismatch');
+console.log('✓ فحص النسخة الشاملة لكل الوحدات نجح 100%:', validRes.summary);
 
-// 2. فحص ملف غير صالح (تالف)
-const corruptResult = validateBackupFile('{ "title": "corrupted json without closure');
-console.assert(corruptResult.isValid === false, 'Corrupt backup should be rejected');
-console.assert(corruptResult.error?.includes('تعذر فك تشفير'), 'Should report parsing error');
-console.log('Corrupted file rejection passed!');
+// 2. اختبار الاسترجاع الآمن والتأكد من استقرار البيانات
+const restoreResult = restoreBackupData(validRes.data!);
+console.assert(restoreResult.success === true, 'Safe restore execution failed');
+const retrievedProfile = loadFromStorage(STORAGE_KEYS.PROFILE, {} as any);
+console.assert(retrievedProfile.schoolName === 'مدرسة ابن خلدون الابتدائية', 'Profile was not restored properly');
+console.log('✓ استرجاع البيانات الآمن نجح وتم التحقق من التخزين الفعلي!');
 
-// 3. فحص ملف خارجي لا علاقة له بتطبيق المفكرة
-const alienResult = validateBackupFile(JSON.stringify({ someRandomField: 42, notes: 'Hello' }));
-console.assert(alienResult.isValid === false, 'Alien backup should be rejected');
-console.assert(alienResult.error?.includes('لا ينتمي لمنظومة مفكرة الإدارة التربوية'), 'Should report domain mismatch error');
-console.log('Alien file rejection passed!');
+// 3. اختبار رفض الملفات التالفة أو غير المتوافقة
+const corruptedJson = '{"app": "MOFAKKIRA", "tasks": [INVALID_JSON}';
+const corruptedRes = validateBackupFile(corruptedJson);
+console.assert(corruptedRes.isValid === false, 'Corrupted JSON should be rejected');
+console.log('✓ تم رفض ملف JSON التالف بنجاح:', corruptedRes.error);
+
+// 4. اختبار رفض ملف من تطبيق غريب
+const alienApp = JSON.stringify({
+  app: 'UNSUPPORTED_RANDOM_APP',
+  items: [1, 2, 3]
+});
+const alienRes = validateBackupFile(alienApp);
+console.assert(alienRes.isValid === false, 'Alien app backup should be rejected');
+console.log('✓ تم رفض ملف لتطبيق غير متطابق بنجاح:', alienRes.error);
+
+// 5. اختبار رفض ملف تنقصه الحقول الأساسية في المهام
+const invalidTasksFormat = JSON.stringify({
+  app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
+  tasks: ['not-an-object', { noTitle: true }]
+});
+const invalidTasksRes = validateBackupFile(invalidTasksFormat);
+console.assert(invalidTasksRes.isValid === false, 'Invalid task structures should be rejected');
+console.log('✓ تم رصد ورفض بنية المهام التالفة بنجاح:', invalidTasksRes.error);

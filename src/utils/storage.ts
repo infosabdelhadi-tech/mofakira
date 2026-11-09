@@ -10,14 +10,7 @@ import type {
   AnnualProgramItem
 } from '../types';
 import {
-  initialSchoolProfile,
-  initialTasks,
-  initialAppointments,
-  initialOperations,
-  initialDailyNotes,
-  initialNotifications,
-  initialMeetings,
-  initialAnnualProgram
+  initialSchoolProfile
 } from './seedData';
 
 const STORAGE_KEYS = {
@@ -69,31 +62,32 @@ export const getInitialProfile = (): SchoolProfile => {
 };
 
 export const getInitialTasks = (): Task[] => {
-  return loadFromStorage<Task[]>(STORAGE_KEYS.TASKS, initialTasks);
+  // Start with clean empty array for new administrators, keeping existing user data if present
+  return loadFromStorage<Task[]>(STORAGE_KEYS.TASKS, []);
 };
 
 export const getInitialAppointments = (): Appointment[] => {
-  return loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, initialAppointments);
+  return loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, []);
 };
 
 export const getInitialOperations = (): Operation[] => {
-  return loadFromStorage<Operation[]>(STORAGE_KEYS.OPERATIONS, initialOperations);
+  return loadFromStorage<Operation[]>(STORAGE_KEYS.OPERATIONS, []);
 };
 
 export const getInitialNotes = (): DailyNote[] => {
-  return loadFromStorage<DailyNote[]>(STORAGE_KEYS.NOTES, initialDailyNotes);
+  return loadFromStorage<DailyNote[]>(STORAGE_KEYS.NOTES, []);
 };
 
 export const getInitialMeetings = (): Meeting[] => {
-  return loadFromStorage<Meeting[]>(STORAGE_KEYS.MEETINGS, initialMeetings);
+  return loadFromStorage<Meeting[]>(STORAGE_KEYS.MEETINGS, []);
 };
 
 export const getInitialAnnualProgram = (): AnnualProgramItem[] => {
-  return loadFromStorage<AnnualProgramItem>(STORAGE_KEYS.ANNUAL_PROGRAM, initialAnnualProgram as any) as any;
+  return loadFromStorage<AnnualProgramItem[]>(STORAGE_KEYS.ANNUAL_PROGRAM, []);
 };
 
 export const getInitialNotifications = (): AppNotification[] => {
-  return loadFromStorage<AppNotification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications);
+  return loadFromStorage<AppNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
 };
 
 export const getInitialLogs = (): ActivityLog[] => {
@@ -107,6 +101,8 @@ export const getInitialLogs = (): ActivityLog[] => {
     }
   ]);
 };
+
+export const BACKUP_SCHEMA_VERSION = 2;
 
 export interface BackupDataStructure {
   app: string;
@@ -128,7 +124,7 @@ export const exportAllDataAsJSON = (): string => {
   const data: BackupDataStructure = {
     app: 'MOFAKKIRA_EDUCATIONAL_PLANNER',
     appVersion: '1.0.0',
-    schemaVersion: 2,
+    schemaVersion: BACKUP_SCHEMA_VERSION,
     exportDate: new Date().toISOString(),
     schoolProfile: loadFromStorage(STORAGE_KEYS.PROFILE, initialSchoolProfile),
     tasks: loadFromStorage(STORAGE_KEYS.TASKS, []),
@@ -159,18 +155,72 @@ export interface ValidationResult {
   data?: BackupDataStructure;
 }
 
+/**
+ * Validates a backup file with deep integrity checking across all modules and fields.
+ */
 export const validateBackupFile = (jsonString: string): ValidationResult => {
   try {
-    const parsed = JSON.parse(jsonString);
-
-    if (!parsed || typeof parsed !== 'object') {
-      return { isValid: false, error: 'الملف غير صالح أو لا يحتوي على بنية بيانات صحيحة.' };
+    if (!jsonString || typeof jsonString !== 'string' || !jsonString.trim()) {
+      return { isValid: false, error: 'الملف فارغ أو غير مقروء.' };
     }
 
-    // Require either schoolProfile or tasks/appointments/operations
-    const hasCoreEntities = parsed.schoolProfile || Array.isArray(parsed.tasks) || Array.isArray(parsed.operations);
-    if (!hasCoreEntities) {
-      return { isValid: false, error: 'الملف لا ينتمي لمنظومة مفكرة الإدارة التربوية أو تنقصه الكيانات الأساسية.' };
+    const parsed = JSON.parse(jsonString);
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { isValid: false, error: 'الملف لا يحتوي على كائن بيانات JSON سليم.' };
+    }
+
+    // 1. Verify schema or identifier
+    if (parsed.app && typeof parsed.app === 'string' && !parsed.app.includes('MOFAKKIRA') && !parsed.app.includes('MOFAKIRA')) {
+      return { isValid: false, error: 'الملف ينتمي لتطبيق آخر ولا يتوافق مع مفكرة الإدارة التربوية.' };
+    }
+
+    // 2. Validate schoolProfile if present
+    if (parsed.schoolProfile) {
+      if (typeof parsed.schoolProfile !== 'object' || Array.isArray(parsed.schoolProfile)) {
+        return { isValid: false, error: 'بيانات هوية المؤسسة (schoolProfile) غير صالحة في الملف.' };
+      }
+    }
+
+    // 3. Helper to validate array of items
+    const validateArrayItems = (arr: any, _itemName: string, requiredField?: string) => {
+      if (arr === undefined || arr === null) return true;
+      if (!Array.isArray(arr)) return false;
+      for (const item of arr) {
+        if (!item || typeof item !== 'object') return false;
+        if (requiredField && typeof item[requiredField] !== 'string') return false;
+      }
+      return true;
+    };
+
+    if (!validateArrayItems(parsed.tasks, 'المهام', 'title')) {
+      return { isValid: false, error: 'تنسيق قائمة المهام (tasks) تالف أو تنقصه حقول أساسية.' };
+    }
+
+    if (!validateArrayItems(parsed.appointments, 'المواعيد', 'title')) {
+      return { isValid: false, error: 'تنسيق قائمة المواعيد (appointments) تالف أو تنقصه حقول أساسية.' };
+    }
+
+    if (!validateArrayItems(parsed.operations, 'العمليات', 'title')) {
+      return { isValid: false, error: 'تنسيق قائمة العمليات الإدارية (operations) تالف.' };
+    }
+
+    if (!validateArrayItems(parsed.meetings, 'المجالس', 'title')) {
+      return { isValid: false, error: 'تنسيق محاضر المجالس (meetings) تالف.' };
+    }
+
+    if (!validateArrayItems(parsed.annualProgram, 'البرنامج السنوي', 'title')) {
+      return { isValid: false, error: 'تنسيق أنشطة البرنامج السنوي (annualProgram) تالف.' };
+    }
+
+    if (!validateArrayItems(parsed.dailyNotes, 'الملاحظات اليومية', 'title')) {
+      return { isValid: false, error: 'تنسيق تدوينات المفكرة اليومية (dailyNotes) تالف.' };
+    }
+
+    // Check at least one core entity exists
+    const hasCore = parsed.schoolProfile || Array.isArray(parsed.tasks) || Array.isArray(parsed.operations) || Array.isArray(parsed.appointments);
+    if (!hasCore) {
+      return { isValid: false, error: 'الملف يفتقر إلى بيانات مفكرة الإدارة التربوية الأساسية.' };
     }
 
     return {
@@ -188,31 +238,71 @@ export const validateBackupFile = (jsonString: string): ValidationResult => {
       data: parsed as BackupDataStructure
     };
   } catch {
-    return { isValid: false, error: 'تعذر فك تشفير الملف. تأكد من أنه ملف JSON سليم.' };
+    return { isValid: false, error: 'تعذر قراءة ملف النسخة الاحتياطية. يرجى التأكد من اختيار ملف JSON سليم.' };
   }
 };
 
-export const restoreBackupData = (data: BackupDataStructure): void => {
-  if (data.schoolProfile) saveToStorage(STORAGE_KEYS.PROFILE, data.schoolProfile);
-  if (Array.isArray(data.tasks)) saveToStorage(STORAGE_KEYS.TASKS, data.tasks);
-  if (Array.isArray(data.appointments)) saveToStorage(STORAGE_KEYS.APPOINTMENTS, data.appointments);
-  if (Array.isArray(data.operations)) saveToStorage(STORAGE_KEYS.OPERATIONS, data.operations);
-  if (Array.isArray(data.dailyNotes)) saveToStorage(STORAGE_KEYS.NOTES, data.dailyNotes);
-  if (Array.isArray(data.meetings)) saveToStorage(STORAGE_KEYS.MEETINGS, data.meetings);
-  if (Array.isArray(data.annualProgram)) saveToStorage(STORAGE_KEYS.ANNUAL_PROGRAM, data.annualProgram);
-  if (Array.isArray(data.notifications)) saveToStorage(STORAGE_KEYS.NOTIFICATIONS, data.notifications);
-  if (Array.isArray(data.activityLogs)) saveToStorage(STORAGE_KEYS.LOGS, data.activityLogs);
+/**
+ * Atomic Safe Restore with Staging & Rollback:
+ * Captures current snapshot, performs trial writes, and rolls back fully if storage quota or error occurs.
+ */
+export const restoreBackupData = (data: BackupDataStructure): { success: boolean; error?: string } => {
+  // 1. Capture current snapshot for rollback
+  const snapshot: Record<string, string | null> = {};
+  for (const key of Object.values(STORAGE_KEYS)) {
+    snapshot[key] = localStorage.getItem(key);
+  }
+
+  try {
+    // 2. Prepare staging payload
+    const stagePayload: [string, any][] = [];
+    if (data.schoolProfile) stagePayload.push([STORAGE_KEYS.PROFILE, data.schoolProfile]);
+    if (Array.isArray(data.tasks)) stagePayload.push([STORAGE_KEYS.TASKS, data.tasks]);
+    if (Array.isArray(data.appointments)) stagePayload.push([STORAGE_KEYS.APPOINTMENTS, data.appointments]);
+    if (Array.isArray(data.operations)) stagePayload.push([STORAGE_KEYS.OPERATIONS, data.operations]);
+    if (Array.isArray(data.dailyNotes)) stagePayload.push([STORAGE_KEYS.NOTES, data.dailyNotes]);
+    if (Array.isArray(data.meetings)) stagePayload.push([STORAGE_KEYS.MEETINGS, data.meetings]);
+    if (Array.isArray(data.annualProgram)) stagePayload.push([STORAGE_KEYS.ANNUAL_PROGRAM, data.annualProgram]);
+    if (Array.isArray(data.notifications)) stagePayload.push([STORAGE_KEYS.NOTIFICATIONS, data.notifications]);
+    if (Array.isArray(data.activityLogs)) stagePayload.push([STORAGE_KEYS.LOGS, data.activityLogs]);
+
+    // 3. Perform write with verification
+    for (const [key, value] of stagePayload) {
+      const ok = saveToStorage(key, value);
+      if (!ok) {
+        throw new Error(`تعذر حفظ البيانات في المفتاح ${key} نظراً لنفاد مساحة التخزين.`);
+      }
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Safe Restore failed. Rolling back to previous snapshot...', err);
+    // Rollback to prior snapshot
+    for (const [key, prevVal] of Object.entries(snapshot)) {
+      if (prevVal === null) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, prevVal);
+      }
+    }
+    return {
+      success: false,
+      error: err?.message || 'فشلت عملية الاسترجاع وتم الرجوع للحالة السابقة دون أي فقد للبيانات الحالية.'
+    };
+  }
 };
 
 export const resetAllDataToDefault = (): void => {
-  localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(initialSchoolProfile));
-  localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(initialTasks));
-  localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify(initialAppointments));
-  localStorage.setItem(STORAGE_KEYS.OPERATIONS, JSON.stringify(initialOperations));
-  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(initialDailyNotes));
-  localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(initialMeetings));
-  localStorage.setItem(STORAGE_KEYS.ANNUAL_PROGRAM, JSON.stringify(initialAnnualProgram));
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(initialNotifications));
+  // Retain existing configured school profile identity if available, but clean operational records
+  const currentProfile = loadFromStorage<SchoolProfile>(STORAGE_KEYS.PROFILE, initialSchoolProfile);
+  localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(currentProfile));
+  localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.APPOINTMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.OPERATIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.ANNUAL_PROGRAM, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify([]));
 };
 
